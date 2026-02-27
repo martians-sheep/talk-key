@@ -1,0 +1,8 @@
+# Memo
+.memo/
+
+# Xcode
+*.xcuserstate
+xcuserdata/
+DerivedData/
+build/
