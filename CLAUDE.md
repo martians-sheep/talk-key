@@ -34,11 +34,15 @@ CoreはSwift固定、UIは将来差し替え可能。
 ## ビルド・テスト
 
 ```bash
-# ビルド
+# デバッグビルド
 xcodebuild -project TalkKey/TalkKey.xcodeproj -scheme TalkKey -destination 'platform=macOS' build
 
 # テスト
 xcodebuild -project TalkKey/TalkKey.xcodeproj -scheme TalkKey -destination 'platform=macOS' test
+
+# Releaseビルド → /Applications に配置
+xcodebuild -project TalkKey/TalkKey.xcodeproj -scheme TalkKey -configuration Release -destination 'platform=macOS' build
+cp -R ~/Library/Developer/Xcode/DerivedData/TalkKey-*/Build/Products/Release/TalkKey.app /Applications/
 ```
 
 ## ディレクトリ構成
