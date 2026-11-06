@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8A5C"/><stop offset="1" stop-color="#E5484D"/></linearGradient><filter id="s" x="-20%" y="-20%" width="140%" height="150%"><feGaussianBlur in="SourceAlpha" stdDeviation="22"/><feOffset dy="26"/><feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+<g filter="url(#s)"><path d="M322 232H702A110 110 0 0 1 812 342V582A110 110 0 0 1 702 692H500L372 806C358 818 338 808 338 790V692H322A110 110 0 0 1 212 582V342A110 110 0 0 1 322 232Z" fill="#FFFFFF"/></g>
+<rect x="316.0" y="412.0" width="56" height="100" rx="28.0" fill="#E5484D"/><rect x="400.0" y="357.0" width="56" height="210" rx="28.0" fill="#E5484D"/><rect x="484.0" y="312.0" width="56" height="300" rx="28.0" fill="#E5484D"/><rect x="568.0" y="377.0" width="56" height="170" rx="28.0" fill="#E5484D"/><rect x="652.0" y="422.0" width="56" height="80" rx="28.0" fill="#E5484D"/></svg>
