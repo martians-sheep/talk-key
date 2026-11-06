@@ -1,7 +1,8 @@
 import Foundation
 
 final class FileLogger: LoggerProtocol {
-    static let shared = FileLogger()
+    // テスト実行中は利用者のログ（~/Library/Logs/TalkKey）を汚さないよう一時ディレクトリに書く
+    static let shared = FileLogger(directory: defaultDirectory())
 
     private let fileURL: URL
     private let fileHandle: FileHandle?
@@ -30,6 +31,13 @@ final class FileLogger: LoggerProtocol {
 
         self.fileHandle = try? FileHandle(forWritingTo: url)
         fileHandle?.seekToEndOfFile()
+    }
+
+    static func defaultDirectory(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {
+        if RuntimeEnvironment.isRunningTests(environment: environment) {
+            return FileManager.default.temporaryDirectory.appendingPathComponent("TalkKeyTests-logs")
+        }
+        return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/TalkKey")
     }
 
     deinit {

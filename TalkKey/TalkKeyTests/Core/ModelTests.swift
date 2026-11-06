@@ -19,6 +19,25 @@ final class TranscriptionResultTests: XCTestCase {
         XCTAssertEqual(result.duration, 2.5)
     }
 
+    func test_decode_legacyJSONWithoutEngine_succeedsWithNilEngine() throws {
+        let json = #"{"rawText":"こんにちは","timestamp":0,"duration":1}"#
+
+        let result = try JSONDecoder().decode(TranscriptionResult.self, from: Data(json.utf8))
+
+        XCTAssertEqual(result.rawText, "こんにちは")
+        XCTAssertNil(result.engine)
+    }
+
+    func test_codable_roundTripKeepsEngine() throws {
+        let original = TranscriptionResult(
+            rawText: "a", formattedText: nil, timestamp: Date(timeIntervalSince1970: 0), duration: 1, engine: .whisper
+        )
+
+        let decoded = try JSONDecoder().decode(TranscriptionResult.self, from: JSONEncoder().encode(original))
+
+        XCTAssertEqual(decoded.engine, .whisper)
+    }
+
     func testFormattedTextDefaultsToRawText() {
         let result = TranscriptionResult(
             rawText: "hello world",
@@ -123,5 +142,13 @@ final class ServiceStatusTests: XCTestCase {
         XCTAssertNotEqual(ServiceStatus.idle, ServiceStatus.recording)
         XCTAssertEqual(ServiceStatus.error("a"), ServiceStatus.error("a"))
         XCTAssertNotEqual(ServiceStatus.error("a"), ServiceStatus.error("b"))
+    }
+
+    func testCanStartRecordingOnlyFromIdleOrError() {
+        XCTAssertTrue(ServiceStatus.idle.canStartRecording)
+        XCTAssertTrue(ServiceStatus.error("a").canStartRecording)
+        XCTAssertFalse(ServiceStatus.recording.canStartRecording)
+        XCTAssertFalse(ServiceStatus.processing.canStartRecording)
+        XCTAssertFalse(ServiceStatus.inserting.canStartRecording)
     }
 }

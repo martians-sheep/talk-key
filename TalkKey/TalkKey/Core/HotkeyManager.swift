@@ -6,12 +6,19 @@ protocol EventTapProviderProtocol: AnyObject {
     func removeEventTap()
 }
 
+protocol KeyStateProviderProtocol: AnyObject {
+    func isKeyDown(_ keyCode: CGKeyCode) -> Bool
+}
+
 final class HotkeyManager: HotkeyManagerProtocol {
     var onKeyDown: (() -> Void)?
     var onKeyUp: (() -> Void)?
 
     private let eventTapProvider: EventTapProviderProtocol
+    private let keyStateProvider: KeyStateProviderProtocol
+    private let releaseCheckInterval: TimeInterval
     private let logger: LoggerProtocol
+    private var releaseCheckTimer: Timer?
     private(set) var isRunning = false
     private(set) var combo: HotkeyCombo
 
@@ -38,11 +45,19 @@ final class HotkeyManager: HotkeyManagerProtocol {
     init(
         eventTapProvider: EventTapProviderProtocol = SystemEventTapProvider(),
         combo: HotkeyCombo = .default,
+        keyStateProvider: KeyStateProviderProtocol = SystemKeyStateProvider(),
+        releaseCheckInterval: TimeInterval = 0.5,
         logger: LoggerProtocol = FileLogger.shared
     ) {
         self.eventTapProvider = eventTapProvider
         self.combo = combo
+        self.keyStateProvider = keyStateProvider
+        self.releaseCheckInterval = releaseCheckInterval
         self.logger = logger
+    }
+
+    deinit {
+        releaseCheckTimer?.invalidate()
     }
 
     convenience init(
@@ -96,12 +111,44 @@ final class HotkeyManager: HotkeyManagerProtocol {
 
     func stop() {
         guard isRunning else { return }
+        stopReleaseCheck()
         eventTapProvider.removeEventTap()
         isRunning = false
         logger.debug("Hotkey manager stopped")
     }
 
+    /// 離した通知を取りこぼすと録音が止まらないため、押している間は実際のキーの状態も確かめる
+    func releaseIfKeysNotHeld() {
+        if combo.isSingleKey {
+            guard isKeyHeld, !keyStateProvider.isKeyDown(combo.triggerKeyCode) else { return }
+            isKeyHeld = false
+        } else {
+            guard isActivated else { return }
+            let isModifierDown = combo.modifierKeyCode.map(keyStateProvider.isKeyDown) ?? false
+            guard !(isModifierDown && keyStateProvider.isKeyDown(combo.triggerKeyCode)) else { return }
+            isActivated = false
+            isTriggerHeld = false
+            isModifierHeld = isModifierDown
+        }
+        stopReleaseCheck()
+        logger.warning("Hotkey release was missed; treating it as released")
+        onKeyUp?()
+    }
+
+    private func startReleaseCheck() {
+        releaseCheckTimer?.invalidate()
+        releaseCheckTimer = Timer.scheduledTimer(withTimeInterval: releaseCheckInterval, repeats: true) { [weak self] _ in
+            self?.releaseIfKeysNotHeld()
+        }
+    }
+
+    private func stopReleaseCheck() {
+        releaseCheckTimer?.invalidate()
+        releaseCheckTimer = nil
+    }
+
     private func resetState() {
+        stopReleaseCheck()
         isKeyHeld = false
         isModifierHeld = false
         isTriggerHeld = false
@@ -124,10 +171,12 @@ final class HotkeyManager: HotkeyManagerProtocol {
         case .keyDown:
             guard !isKeyHeld else { return true }
             isKeyHeld = true
+            startReleaseCheck()
             onKeyDown?()
             return true
         case .keyUp:
             isKeyHeld = false
+            stopReleaseCheck()
             onKeyUp?()
             return true
         default:
@@ -160,6 +209,7 @@ final class HotkeyManager: HotkeyManagerProtocol {
                 // Safety stop: modifier released while recording
                 isActivated = false
                 isTriggerHeld = false
+                stopReleaseCheck()
                 onKeyUp?()
             }
             return true
@@ -175,6 +225,7 @@ final class HotkeyManager: HotkeyManagerProtocol {
             guard !isTriggerHeld else { return true } // repeat suppression
             isTriggerHeld = true
             isActivated = true
+            startReleaseCheck()
             onKeyDown?()
             return true
         case .keyUp:
@@ -182,6 +233,7 @@ final class HotkeyManager: HotkeyManagerProtocol {
             isTriggerHeld = false
             if isActivated {
                 isActivated = false
+                stopReleaseCheck()
                 onKeyUp?()
             }
             return true
@@ -221,14 +273,16 @@ final class SystemEventTapProvider: EventTapProviderProtocol {
             | (1 << CGEventType.flagsChanged.rawValue)
 
         let tapCallback: CGEventTapCallBack = { proxy, type, event, refcon in
-            guard let refcon = refcon else { return Unmanaged.passRetained(event) }
+            guard let refcon = refcon else { return Unmanaged.passUnretained(event) }
             let provider = Unmanaged<SystemEventTapProvider>.fromOpaque(refcon).takeUnretainedValue()
 
             if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                // 止まっていた間のキー操作は届かない。離した操作の取りこぼしは releaseIfKeysNotHeld で拾う
+                FileLogger.shared.warning("Event tap was disabled (type=\(type.rawValue)); re-enabling")
                 if let tap = provider.eventTap {
                     CGEvent.tapEnable(tap: tap, enable: true)
                 }
-                return Unmanaged.passRetained(event)
+                return Unmanaged.passUnretained(event)
             }
 
             let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
@@ -244,7 +298,7 @@ final class SystemEventTapProvider: EventTapProviderProtocol {
             }
 
             let consumed = provider.callback?(effectiveType, keyCode) ?? false
-            return consumed ? nil : Unmanaged.passRetained(event)
+            return consumed ? nil : Unmanaged.passUnretained(event)
         }
 
         let selfPtr = Unmanaged.passUnretained(self).toOpaque()
@@ -275,5 +329,12 @@ final class SystemEventTapProvider: EventTapProviderProtocol {
         eventTap = nil
         runLoopSource = nil
         callback = nil
+    }
+}
+
+final class SystemKeyStateProvider: KeyStateProviderProtocol {
+    func isKeyDown(_ keyCode: CGKeyCode) -> Bool {
+        // イベントタップを通らないハードウェアの状態を見る
+        CGEventSource.keyState(.hidSystemState, key: keyCode)
     }
 }

@@ -7,12 +7,46 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1C0FFEE0000000000000002 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE0000000000000001 /* Assets.xcassets */; };
+		0072710028A4821EDD2D1708 /* HTTPClientProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE120B3E3C32F3D724B8DF55 /* HTTPClientProtocol.swift */; };
+		01C920D9919EB30CA73D62AB /* TestAudioBuffers.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9DEBC1B38CFAC386D2B9FCB /* TestAudioBuffers.swift */; };
+		03F058876AA7714D68FBF55F /* LLMProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 144C163F4C47BE630DA2EBB0 /* LLMProviderTests.swift */; };
+		14921170EDC39CBDE43CC288 /* RecognitionSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DC27E191C803E3C8BCD077B /* RecognitionSource.swift */; };
+		15E376E70CD4DA51E2C66C20 /* RecognitionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CBBA730991A041B55369785 /* RecognitionEngine.swift */; };
+		4904B6FA829D8A16E21C4345 /* LoginItemStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A844D9526E30C64DCD98D76 /* LoginItemStatus.swift */; };
+		16F641B73138935F0CA79F34 /* MockProcessLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B26EFF10D3D09E53103EBD22 /* MockProcessLauncher.swift */; };
+		215F9B0392162DE34BCCBC33 /* MockLoginItemService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4DC52B8847C4A7CDAD4A184 /* MockLoginItemService.swift */; };
+		18B0FF711EEF2BDFF707A82C /* PCM16Resampler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C512666B70024024F928BF5 /* PCM16Resampler.swift */; };
 		1A078CD4F3253A5C8AF1D3C0 /* HotkeySettingsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B8B813B60DEEA032066A55E /* HotkeySettingsStoreTests.swift */; };
+		1A378DA076775462E5B7DE01 /* RecognitionSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F46A123D983682E15E44D9A /* RecognitionSettings.swift */; };
+		1B1139949CB655A034862E20 /* ProcessLauncherProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7302822FF8F0A146892754 /* ProcessLauncherProtocol.swift */; };
+		1E2855C283036EFBAA9E5E91 /* RuntimeEnvironmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B904501865D1C1213EA169A7 /* RuntimeEnvironmentTests.swift */; };
+		2E8A87B6670A6E75034AA035 /* WhisperServerProviderProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = C06F92202F19500631830756 /* WhisperServerProviderProtocol.swift */; };
+		7F953EBC8E9A36136B798F43 /* LoginItemServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62DA64D2C3F5F69831186FC6 /* LoginItemServiceProtocol.swift */; };
+		2F1C0049F0E74FD3223168DD /* WhisperTranscriberTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C757F7DD99613D809B3F5EE6 /* WhisperTranscriberTests.swift */; };
+		2F5B8289EEAA52209181551A /* AsyncTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8CDACACAA610013C88EA0F2 /* AsyncTimeout.swift */; };
+		32D95A3E13EAA908890ADE7A /* MockHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925748B133704DE50F82CE53 /* MockHTTPClient.swift */; };
 		3302942324E347CB2BB48FD9 /* HotkeyCombo.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0B241DDD6FF0F1EA230D0D /* HotkeyCombo.swift */; };
 		3B62962196CCCA914E315AC3 /* KeyCodeHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6C5EBB528246FA6C1B94105 /* KeyCodeHelper.swift */; };
+		3EE082272CC1B28ABB38ACEF /* MockWhisperServerProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3AD50858EACC28ED851CA5B /* MockWhisperServerProvider.swift */; };
+		479A900D99FA4F14C67029B3 /* WhisperRequestBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E18F4972BCE01394246D5FA /* WhisperRequestBuilder.swift */; };
 		56CB7318CA496E10345439E5 /* HotkeyComboTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B0F6A57F4DE2D2348F0627B /* HotkeyComboTests.swift */; };
+		56F33358F1AFA7B3F7657643 /* LLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39C35CC61BDC79885BB33328 /* LLMProvider.swift */; };
+		59386D6D0E1FF0F626326309 /* RecognitionSettingsStoreProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10A488E3C8C8BB165EA45B5 /* RecognitionSettingsStoreProtocol.swift */; };
+		5ECBF24BF25865EFAB1F3C17 /* URLSessionHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE3645B9C0B9EB88AA82BBEC /* URLSessionHTTPClient.swift */; };
+		6231E269E060297ED0DB89DC /* ClaudeFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A15F37989CE27B555929BF44 /* ClaudeFormatter.swift */; };
+		68E355746E4C5E8320D5E463 /* WhisperServerConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = AED8F37CFAD7E31DD3A0505B /* WhisperServerConfiguration.swift */; };
+		69A9694E812A1AD94B53EB73 /* WhisperTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8C822A1B9BC3E378EA9FE0A /* WhisperTranscriber.swift */; };
+		6F10F3FD1F751C6D564974C8 /* SystemProcessLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001814B7AED65A9689F3A306 /* SystemProcessLauncher.swift */; };
+		72D59FA6FB39BDD54918CFA4 /* WhisperServerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DC5974831B1B09CA0179D31 /* WhisperServerManager.swift */; };
+		9A5BB28BF2C67D22B6C8331C /* SystemLoginItemService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67B2B20DD879D984BD402E50 /* SystemLoginItemService.swift */; };
+		DC688994B0A0071C7254C01E /* LaunchAtLoginManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4336D46375DB783E944013E7 /* LaunchAtLoginManager.swift */; };
+		79C9E570646C295BF37C6DB5 /* HTTPErrorBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = C333A289EAFB85CA697BC341 /* HTTPErrorBody.swift */; };
 		90D2C2201B4070292CF2BEC8 /* HotkeyIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F72EADDB1B7672ED9155EB23 /* HotkeyIntegrationTests.swift */; };
 		943F26A471FF440AE48984A3 /* HotkeySettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1622541295C02D6F8AED636 /* HotkeySettingsStore.swift */; };
+		960B2C97E30B7D16E8B346DA /* WhisperServerManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A863B0581AC41DE3C8AD302 /* WhisperServerManagerTests.swift */; };
+		F1D9CDA5627142BB61D839C3 /* LaunchAtLoginManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F58C24A4BCE8E4281F6D4F15 /* LaunchAtLoginManagerTests.swift */; };
+		A71A3B21CE70F9023028ED35 /* FallbackTranscriberTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46056241CF0C91D11F4A35A6 /* FallbackTranscriberTests.swift */; };
 		AA0000000000000000000020 /* TalkKeyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000010 /* TalkKeyApp.swift */; };
 		AA0000000000000000000021 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000011 /* AppDelegate.swift */; };
 		AA0000000000000000000024 /* TalkKeyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000014 /* TalkKeyTests.swift */; };
@@ -69,8 +103,20 @@
 		AA0000000000000000001710 /* LogFileReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000001700 /* LogFileReader.swift */; };
 		AA0000000000000000001810 /* LogViewerWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000001800 /* LogViewerWindow.swift */; };
 		AA0000000000000000001910 /* LogFileReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000001900 /* LogFileReaderTests.swift */; };
+		B819D3327B82674C607E626F /* RecognitionSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 830DBC9F760104EDFF19D30C /* RecognitionSettingsStore.swift */; };
+		C1754FBD852A4BA3DC6EA60C /* WAVEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = D376C51093D016E7F86F1745 /* WAVEncoder.swift */; };
+		C41FF8D393AF9F12BDB66EC0 /* MockAudioEngineProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75F4FAB6AA55272D6CCAD89D /* MockAudioEngineProvider.swift */; };
+		C6FFB5CCFFB0F2491C0EC303 /* RuntimeEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37DD7778424F978F0930D8AB /* RuntimeEnvironment.swift */; };
+		C767663D46CBA56901A35462 /* PCM16ResamplerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 158CE17033018D5955C33D63 /* PCM16ResamplerTests.swift */; };
+		D8844608F28C0F7BEB55811B /* WAVEncoderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 471204CF58A8B979E8A79B10 /* WAVEncoderTests.swift */; };
+		D8CA73F8F6B021D9CB43AF71 /* WhisperRequestBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A02E3FC923091EE70A68688 /* WhisperRequestBuilderTests.swift */; };
+		E19F16B9EF5E85F244BA79A0 /* FallbackTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A09DC6659263577F595EFB0 /* FallbackTranscriber.swift */; };
 		E48C0719BAE15A2C970E6E2E /* KeyCodeHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B8C8E0319F16D7EFFD400B /* KeyCodeHelperTests.swift */; };
+		E619426EE506F295A9F1C972 /* MockSpeechRecognizerProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D2A4C1F0664A023D71101E9 /* MockSpeechRecognizerProvider.swift */; };
+		EB0D7248D5E06CEE0576B13B /* ClaudeFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1413114128C3AD1E5BD3C9C2 /* ClaudeFormatterTests.swift */; };
 		F4EDAC024FD43F364B2777D4 /* HotkeySettingsStoreProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8885B1D7A1BB46C2D7ECE37 /* HotkeySettingsStoreProtocol.swift */; };
+		F81FDA8DF2FA4C28DC8BED3F /* LLMPromptTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 655C679C21AEE93A004B6A01 /* LLMPromptTemplate.swift */; };
+		FA47CF964D6E9F1D829AF577 /* RecognitionSettingsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 474AA1B2B3DB187731178B8B /* RecognitionSettingsStoreTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -84,9 +130,38 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		A1C0FFEE0000000000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		001814B7AED65A9689F3A306 /* SystemProcessLauncher.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SystemProcessLauncher.swift; sourceTree = "<group>"; };
+		0A02E3FC923091EE70A68688 /* WhisperRequestBuilderTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WhisperRequestBuilderTests.swift; sourceTree = "<group>"; };
 		0B0F6A57F4DE2D2348F0627B /* HotkeyComboTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HotkeyComboTests.swift; sourceTree = "<group>"; };
+		0D2A4C1F0664A023D71101E9 /* MockSpeechRecognizerProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MockSpeechRecognizerProvider.swift; sourceTree = "<group>"; };
+		1413114128C3AD1E5BD3C9C2 /* ClaudeFormatterTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeFormatterTests.swift; sourceTree = "<group>"; };
+		144C163F4C47BE630DA2EBB0 /* LLMProviderTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LLMProviderTests.swift; sourceTree = "<group>"; };
+		158CE17033018D5955C33D63 /* PCM16ResamplerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PCM16ResamplerTests.swift; sourceTree = "<group>"; };
 		23B8C8E0319F16D7EFFD400B /* KeyCodeHelperTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyCodeHelperTests.swift; sourceTree = "<group>"; };
+		2A09DC6659263577F595EFB0 /* FallbackTranscriber.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FallbackTranscriber.swift; sourceTree = "<group>"; };
+		2DC5974831B1B09CA0179D31 /* WhisperServerManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WhisperServerManager.swift; sourceTree = "<group>"; };
+		67B2B20DD879D984BD402E50 /* SystemLoginItemService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SystemLoginItemService.swift; sourceTree = "<group>"; };
+		4336D46375DB783E944013E7 /* LaunchAtLoginManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginManager.swift; sourceTree = "<group>"; };
+		2F46A123D983682E15E44D9A /* RecognitionSettings.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RecognitionSettings.swift; sourceTree = "<group>"; };
+		37DD7778424F978F0930D8AB /* RuntimeEnvironment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RuntimeEnvironment.swift; sourceTree = "<group>"; };
+		39C35CC61BDC79885BB33328 /* LLMProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LLMProvider.swift; sourceTree = "<group>"; };
+		46056241CF0C91D11F4A35A6 /* FallbackTranscriberTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FallbackTranscriberTests.swift; sourceTree = "<group>"; };
+		471204CF58A8B979E8A79B10 /* WAVEncoderTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WAVEncoderTests.swift; sourceTree = "<group>"; };
+		474AA1B2B3DB187731178B8B /* RecognitionSettingsStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RecognitionSettingsStoreTests.swift; sourceTree = "<group>"; };
+		655C679C21AEE93A004B6A01 /* LLMPromptTemplate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LLMPromptTemplate.swift; sourceTree = "<group>"; };
+		75F4FAB6AA55272D6CCAD89D /* MockAudioEngineProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MockAudioEngineProvider.swift; sourceTree = "<group>"; };
+		7C512666B70024024F928BF5 /* PCM16Resampler.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PCM16Resampler.swift; sourceTree = "<group>"; };
+		7E18F4972BCE01394246D5FA /* WhisperRequestBuilder.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WhisperRequestBuilder.swift; sourceTree = "<group>"; };
+		830DBC9F760104EDFF19D30C /* RecognitionSettingsStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RecognitionSettingsStore.swift; sourceTree = "<group>"; };
+		8A863B0581AC41DE3C8AD302 /* WhisperServerManagerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WhisperServerManagerTests.swift; sourceTree = "<group>"; };
+		F58C24A4BCE8E4281F6D4F15 /* LaunchAtLoginManagerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginManagerTests.swift; sourceTree = "<group>"; };
 		8B8B813B60DEEA032066A55E /* HotkeySettingsStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HotkeySettingsStoreTests.swift; sourceTree = "<group>"; };
+		8CBBA730991A041B55369785 /* RecognitionEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RecognitionEngine.swift; sourceTree = "<group>"; };
+		6A844D9526E30C64DCD98D76 /* LoginItemStatus.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LoginItemStatus.swift; sourceTree = "<group>"; };
+		925748B133704DE50F82CE53 /* MockHTTPClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MockHTTPClient.swift; sourceTree = "<group>"; };
+		9DC27E191C803E3C8BCD077B /* RecognitionSource.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RecognitionSource.swift; sourceTree = "<group>"; };
+		A15F37989CE27B555929BF44 /* ClaudeFormatter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeFormatter.swift; sourceTree = "<group>"; };
 		AA0000000000000000000010 /* TalkKeyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkKeyApp.swift; sourceTree = "<group>"; };
 		AA0000000000000000000011 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		AA0000000000000000000014 /* TalkKeyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkKeyTests.swift; sourceTree = "<group>"; };
@@ -146,11 +221,28 @@
 		AA0000000000000000001700 /* LogFileReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogFileReader.swift; sourceTree = "<group>"; };
 		AA0000000000000000001800 /* LogViewerWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogViewerWindow.swift; sourceTree = "<group>"; };
 		AA0000000000000000001900 /* LogFileReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogFileReaderTests.swift; sourceTree = "<group>"; };
+		AED8F37CFAD7E31DD3A0505B /* WhisperServerConfiguration.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WhisperServerConfiguration.swift; sourceTree = "<group>"; };
+		B26EFF10D3D09E53103EBD22 /* MockProcessLauncher.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MockProcessLauncher.swift; sourceTree = "<group>"; };
+		E4DC52B8847C4A7CDAD4A184 /* MockLoginItemService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MockLoginItemService.swift; sourceTree = "<group>"; };
 		B8885B1D7A1BB46C2D7ECE37 /* HotkeySettingsStoreProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HotkeySettingsStoreProtocol.swift; sourceTree = "<group>"; };
+		B8CDACACAA610013C88EA0F2 /* AsyncTimeout.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AsyncTimeout.swift; sourceTree = "<group>"; };
+		B904501865D1C1213EA169A7 /* RuntimeEnvironmentTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RuntimeEnvironmentTests.swift; sourceTree = "<group>"; };
+		BE3645B9C0B9EB88AA82BBEC /* URLSessionHTTPClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = URLSessionHTTPClient.swift; sourceTree = "<group>"; };
+		C06F92202F19500631830756 /* WhisperServerProviderProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WhisperServerProviderProtocol.swift; sourceTree = "<group>"; };
+		62DA64D2C3F5F69831186FC6 /* LoginItemServiceProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LoginItemServiceProtocol.swift; sourceTree = "<group>"; };
+		C333A289EAFB85CA697BC341 /* HTTPErrorBody.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HTTPErrorBody.swift; sourceTree = "<group>"; };
+		C757F7DD99613D809B3F5EE6 /* WhisperTranscriberTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WhisperTranscriberTests.swift; sourceTree = "<group>"; };
+		CD7302822FF8F0A146892754 /* ProcessLauncherProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProcessLauncherProtocol.swift; sourceTree = "<group>"; };
+		D376C51093D016E7F86F1745 /* WAVEncoder.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WAVEncoder.swift; sourceTree = "<group>"; };
+		D9DEBC1B38CFAC386D2B9FCB /* TestAudioBuffers.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TestAudioBuffers.swift; sourceTree = "<group>"; };
 		DD0B241DDD6FF0F1EA230D0D /* HotkeyCombo.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HotkeyCombo.swift; sourceTree = "<group>"; };
+		E10A488E3C8C8BB165EA45B5 /* RecognitionSettingsStoreProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RecognitionSettingsStoreProtocol.swift; sourceTree = "<group>"; };
 		E1622541295C02D6F8AED636 /* HotkeySettingsStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HotkeySettingsStore.swift; sourceTree = "<group>"; };
+		E3AD50858EACC28ED851CA5B /* MockWhisperServerProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MockWhisperServerProvider.swift; sourceTree = "<group>"; };
 		E6C5EBB528246FA6C1B94105 /* KeyCodeHelper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyCodeHelper.swift; sourceTree = "<group>"; };
+		E8C822A1B9BC3E378EA9FE0A /* WhisperTranscriber.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WhisperTranscriber.swift; sourceTree = "<group>"; };
 		F72EADDB1B7672ED9155EB23 /* HotkeyIntegrationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HotkeyIntegrationTests.swift; sourceTree = "<group>"; };
+		FE120B3E3C32F3D724B8DF55 /* HTTPClientProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HTTPClientProtocol.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -203,6 +295,19 @@
 				AA0000000000000000000DA0 /* HistoryStore.swift */,
 				E1622541295C02D6F8AED636 /* HotkeySettingsStore.swift */,
 				AA0000000000000000001700 /* LogFileReader.swift */,
+				BE3645B9C0B9EB88AA82BBEC /* URLSessionHTTPClient.swift */,
+				655C679C21AEE93A004B6A01 /* LLMPromptTemplate.swift */,
+				A15F37989CE27B555929BF44 /* ClaudeFormatter.swift */,
+				7C512666B70024024F928BF5 /* PCM16Resampler.swift */,
+				D376C51093D016E7F86F1745 /* WAVEncoder.swift */,
+				7E18F4972BCE01394246D5FA /* WhisperRequestBuilder.swift */,
+				E8C822A1B9BC3E378EA9FE0A /* WhisperTranscriber.swift */,
+				001814B7AED65A9689F3A306 /* SystemProcessLauncher.swift */,
+				2DC5974831B1B09CA0179D31 /* WhisperServerManager.swift */,
+				67B2B20DD879D984BD402E50 /* SystemLoginItemService.swift */,
+				4336D46375DB783E944013E7 /* LaunchAtLoginManager.swift */,
+				2A09DC6659263577F595EFB0 /* FallbackTranscriber.swift */,
+				830DBC9F760104EDFF19D30C /* RecognitionSettingsStore.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -218,6 +323,11 @@
 				AA00000000000000000001A5 /* HotkeyManagerProtocol.swift */,
 				AA00000000000000000001A6 /* LoggerProtocol.swift */,
 				B8885B1D7A1BB46C2D7ECE37 /* HotkeySettingsStoreProtocol.swift */,
+				FE120B3E3C32F3D724B8DF55 /* HTTPClientProtocol.swift */,
+				C06F92202F19500631830756 /* WhisperServerProviderProtocol.swift */,
+				62DA64D2C3F5F69831186FC6 /* LoginItemServiceProtocol.swift */,
+				CD7302822FF8F0A146892754 /* ProcessLauncherProtocol.swift */,
+				E10A488E3C8C8BB165EA45B5 /* RecognitionSettingsStoreProtocol.swift */,
 			);
 			path = Protocols;
 			sourceTree = "<group>";
@@ -251,6 +361,12 @@
 				AA0000000000000000001400 /* GeminiModel.swift */,
 				AA0000000000000000001600 /* LogEntry.swift */,
 				DD0B241DDD6FF0F1EA230D0D /* HotkeyCombo.swift */,
+				39C35CC61BDC79885BB33328 /* LLMProvider.swift */,
+				9DC27E191C803E3C8BCD077B /* RecognitionSource.swift */,
+				AED8F37CFAD7E31DD3A0505B /* WhisperServerConfiguration.swift */,
+				8CBBA730991A041B55369785 /* RecognitionEngine.swift */,
+				6A844D9526E30C64DCD98D76 /* LoginItemStatus.swift */,
+				2F46A123D983682E15E44D9A /* RecognitionSettings.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -263,6 +379,9 @@
 				AA0000000000000000000EA0 /* KeychainHelper.swift */,
 				AA0000000000000000001200 /* FileLogger.swift */,
 				E6C5EBB528246FA6C1B94105 /* KeyCodeHelper.swift */,
+				B8CDACACAA610013C88EA0F2 /* AsyncTimeout.swift */,
+				C333A289EAFB85CA697BC341 /* HTTPErrorBody.swift */,
+				37DD7778424F978F0930D8AB /* RuntimeEnvironment.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -270,6 +389,7 @@
 		AA000000000000000000000A /* TalkKey */ = {
 			isa = PBXGroup;
 			children = (
+				A1C0FFEE0000000000000001 /* Assets.xcassets */,
 				AA0000000000000000001000 /* TalkKey.entitlements */,
 				AA0000000000000000000003 /* App */,
 				AA0000000000000000000004 /* Core */,
@@ -314,6 +434,16 @@
 				F72EADDB1B7672ED9155EB23 /* HotkeyIntegrationTests.swift */,
 				AA0000000000000000001900 /* LogFileReaderTests.swift */,
 				0B0F6A57F4DE2D2348F0627B /* HotkeyComboTests.swift */,
+				1413114128C3AD1E5BD3C9C2 /* ClaudeFormatterTests.swift */,
+				158CE17033018D5955C33D63 /* PCM16ResamplerTests.swift */,
+				471204CF58A8B979E8A79B10 /* WAVEncoderTests.swift */,
+				0A02E3FC923091EE70A68688 /* WhisperRequestBuilderTests.swift */,
+				C757F7DD99613D809B3F5EE6 /* WhisperTranscriberTests.swift */,
+				8A863B0581AC41DE3C8AD302 /* WhisperServerManagerTests.swift */,
+				F58C24A4BCE8E4281F6D4F15 /* LaunchAtLoginManagerTests.swift */,
+				46056241CF0C91D11F4A35A6 /* FallbackTranscriberTests.swift */,
+				474AA1B2B3DB187731178B8B /* RecognitionSettingsStoreTests.swift */,
+				B904501865D1C1213EA169A7 /* RuntimeEnvironmentTests.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -335,6 +465,13 @@
 				AA00000000000000000002A3 /* MockInserter.swift */,
 				AA00000000000000000002A4 /* MockHistoryStore.swift */,
 				AA00000000000000000002A5 /* MockLogger.swift */,
+				925748B133704DE50F82CE53 /* MockHTTPClient.swift */,
+				75F4FAB6AA55272D6CCAD89D /* MockAudioEngineProvider.swift */,
+				0D2A4C1F0664A023D71101E9 /* MockSpeechRecognizerProvider.swift */,
+				D9DEBC1B38CFAC386D2B9FCB /* TestAudioBuffers.swift */,
+				E3AD50858EACC28ED851CA5B /* MockWhisperServerProvider.swift */,
+				B26EFF10D3D09E53103EBD22 /* MockProcessLauncher.swift */,
+				E4DC52B8847C4A7CDAD4A184 /* MockLoginItemService.swift */,
 			);
 			path = Mocks;
 			sourceTree = "<group>";
@@ -343,6 +480,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0000000000000000001500 /* GeminiModelTests.swift */,
+				144C163F4C47BE630DA2EBB0 /* LLMProviderTests.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -438,6 +576,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1C0FFEE0000000000000002 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -492,6 +631,33 @@
 				F4EDAC024FD43F364B2777D4 /* HotkeySettingsStoreProtocol.swift in Sources */,
 				3B62962196CCCA914E315AC3 /* KeyCodeHelper.swift in Sources */,
 				3302942324E347CB2BB48FD9 /* HotkeyCombo.swift in Sources */,
+				0072710028A4821EDD2D1708 /* HTTPClientProtocol.swift in Sources */,
+				5ECBF24BF25865EFAB1F3C17 /* URLSessionHTTPClient.swift in Sources */,
+				F81FDA8DF2FA4C28DC8BED3F /* LLMPromptTemplate.swift in Sources */,
+				2F5B8289EEAA52209181551A /* AsyncTimeout.swift in Sources */,
+				79C9E570646C295BF37C6DB5 /* HTTPErrorBody.swift in Sources */,
+				56F33358F1AFA7B3F7657643 /* LLMProvider.swift in Sources */,
+				6231E269E060297ED0DB89DC /* ClaudeFormatter.swift in Sources */,
+				14921170EDC39CBDE43CC288 /* RecognitionSource.swift in Sources */,
+				2E8A87B6670A6E75034AA035 /* WhisperServerProviderProtocol.swift in Sources */,
+				7F953EBC8E9A36136B798F43 /* LoginItemServiceProtocol.swift in Sources */,
+				18B0FF711EEF2BDFF707A82C /* PCM16Resampler.swift in Sources */,
+				C1754FBD852A4BA3DC6EA60C /* WAVEncoder.swift in Sources */,
+				479A900D99FA4F14C67029B3 /* WhisperRequestBuilder.swift in Sources */,
+				69A9694E812A1AD94B53EB73 /* WhisperTranscriber.swift in Sources */,
+				1B1139949CB655A034862E20 /* ProcessLauncherProtocol.swift in Sources */,
+				6F10F3FD1F751C6D564974C8 /* SystemProcessLauncher.swift in Sources */,
+				68E355746E4C5E8320D5E463 /* WhisperServerConfiguration.swift in Sources */,
+				72D59FA6FB39BDD54918CFA4 /* WhisperServerManager.swift in Sources */,
+				9A5BB28BF2C67D22B6C8331C /* SystemLoginItemService.swift in Sources */,
+				DC688994B0A0071C7254C01E /* LaunchAtLoginManager.swift in Sources */,
+				E19F16B9EF5E85F244BA79A0 /* FallbackTranscriber.swift in Sources */,
+				15E376E70CD4DA51E2C66C20 /* RecognitionEngine.swift in Sources */,
+				4904B6FA829D8A16E21C4345 /* LoginItemStatus.swift in Sources */,
+				1A378DA076775462E5B7DE01 /* RecognitionSettings.swift in Sources */,
+				59386D6D0E1FF0F626326309 /* RecognitionSettingsStoreProtocol.swift in Sources */,
+				B819D3327B82674C607E626F /* RecognitionSettingsStore.swift in Sources */,
+				C6FFB5CCFFB0F2491C0EC303 /* RuntimeEnvironment.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -526,6 +692,24 @@
 				E48C0719BAE15A2C970E6E2E /* KeyCodeHelperTests.swift in Sources */,
 				90D2C2201B4070292CF2BEC8 /* HotkeyIntegrationTests.swift in Sources */,
 				56CB7318CA496E10345439E5 /* HotkeyComboTests.swift in Sources */,
+				32D95A3E13EAA908890ADE7A /* MockHTTPClient.swift in Sources */,
+				C41FF8D393AF9F12BDB66EC0 /* MockAudioEngineProvider.swift in Sources */,
+				E619426EE506F295A9F1C972 /* MockSpeechRecognizerProvider.swift in Sources */,
+				EB0D7248D5E06CEE0576B13B /* ClaudeFormatterTests.swift in Sources */,
+				03F058876AA7714D68FBF55F /* LLMProviderTests.swift in Sources */,
+				01C920D9919EB30CA73D62AB /* TestAudioBuffers.swift in Sources */,
+				3EE082272CC1B28ABB38ACEF /* MockWhisperServerProvider.swift in Sources */,
+				C767663D46CBA56901A35462 /* PCM16ResamplerTests.swift in Sources */,
+				D8844608F28C0F7BEB55811B /* WAVEncoderTests.swift in Sources */,
+				D8CA73F8F6B021D9CB43AF71 /* WhisperRequestBuilderTests.swift in Sources */,
+				2F1C0049F0E74FD3223168DD /* WhisperTranscriberTests.swift in Sources */,
+				16F641B73138935F0CA79F34 /* MockProcessLauncher.swift in Sources */,
+				215F9B0392162DE34BCCBC33 /* MockLoginItemService.swift in Sources */,
+				960B2C97E30B7D16E8B346DA /* WhisperServerManagerTests.swift in Sources */,
+				F1D9CDA5627142BB61D839C3 /* LaunchAtLoginManagerTests.swift in Sources */,
+				A71A3B21CE70F9023028ED35 /* FallbackTranscriberTests.swift in Sources */,
+				FA47CF964D6E9F1D829AF577 /* RecognitionSettingsStoreTests.swift in Sources */,
+				1E2855C283036EFBAA9E5E91 /* RuntimeEnvironmentTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -555,6 +739,7 @@
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "TalkKey needs microphone access for voice input";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "TalkKey needs speech recognition to transcribe voice input";
 				MARKETING_VERSION = 0.1.0;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				PRODUCT_BUNDLE_IDENTIFIER = com.talkkey.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -577,6 +762,7 @@
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "TalkKey needs microphone access for voice input";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "TalkKey needs speech recognition to transcribe voice input";
 				MARKETING_VERSION = 0.1.0;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				PRODUCT_BUNDLE_IDENTIFIER = com.talkkey.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

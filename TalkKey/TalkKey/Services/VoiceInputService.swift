@@ -33,8 +33,12 @@ final class VoiceInputService {
         self.logger = logger
     }
 
+    func prepare() {
+        audioCapture.prepare()
+    }
+
     func startRecording() throws {
-        guard currentStatus == .idle else {
+        guard currentStatus.canStartRecording else {
             throw TalkKeyError.alreadyRecording
         }
 
@@ -45,7 +49,13 @@ final class VoiceInputService {
         }
 
         try audioCapture.startCapture()
-        try transcriber.startTranscription()
+        do {
+            try transcriber.startTranscription()
+        } catch {
+            // 認識を始められないままマイクだけ動き続けないよう止める
+            audioCapture.stopCapture()
+            throw error
+        }
         updateStatus(.recording)
     }
 
@@ -53,16 +63,29 @@ final class VoiceInputService {
         guard currentStatus == .recording else {
             throw TalkKeyError.notRecording
         }
+        let releasedAt = Date()
         audioCapture.stopCapture()
         updateStatus(.processing)
 
         do {
             let result = try await transcriber.stopTranscription()
+            let recognizedAt = Date()
             var formattedText: String?
+            var formattedAt = recognizedAt
+
+            defer {
+                logMetrics(
+                    result: result,
+                    releasedAt: releasedAt,
+                    recognizedAt: recognizedAt,
+                    formattedAt: formattedAt
+                )
+            }
 
             if !result.rawText.isEmpty {
                 logger.info("Transcription: \(result.rawText)")
                 let formatted = try await formatter.format(text: result.rawText, mode: .memo)
+                formattedAt = Date()
                 formattedText = formatted
                 let textToInsert = formatted.isEmpty ? result.rawText : formatted
 
@@ -115,6 +138,17 @@ final class VoiceInputService {
 
     func status() -> ServiceStatus {
         currentStatus
+    }
+
+    /// 離してから挿入までの内訳を1行で残す（速さの調査用）
+    private func logMetrics(result: TranscriptionResult, releasedAt: Date, recognizedAt: Date, formattedAt: Date) {
+        let now = Date()
+        let recognizeMs = Int(recognizedAt.timeIntervalSince(releasedAt) * 1000)
+        let formatMs = Int(formattedAt.timeIntervalSince(recognizedAt) * 1000)
+        let totalMs = Int(now.timeIntervalSince(releasedAt) * 1000)
+        let engine = result.engine?.rawValue ?? "unknown"
+        let textInfo = result.rawText.isEmpty ? "empty" : "chars=\(result.rawText.count)"
+        logger.info("Metrics: engine=\(engine) recognize=\(recognizeMs)ms format=\(formatMs)ms total=\(totalMs)ms \(textInfo)")
     }
 
     private func updateStatus(_ newStatus: ServiceStatus) {

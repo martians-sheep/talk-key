@@ -6,15 +6,18 @@ final class AudioCaptureTests: XCTestCase {
     private var permissionChecker: MockPermissionCheckerForAudio!
     private var audioEngineProvider: MockAudioEngineProvider!
     private var audioCapture: AudioCapture!
+    private var logger: MockLogger!
 
     override func setUp() {
         super.setUp()
         permissionChecker = MockPermissionCheckerForAudio()
         permissionChecker.micGranted = true
         audioEngineProvider = MockAudioEngineProvider()
+        logger = MockLogger()
         audioCapture = AudioCapture(
             permissionChecker: permissionChecker,
-            engineProvider: audioEngineProvider
+            engineProvider: audioEngineProvider,
+            logger: logger
         )
     }
 
@@ -67,6 +70,46 @@ final class AudioCaptureTests: XCTestCase {
     }
 }
 
+// MARK: - Warm-up and latency
+
+extension AudioCaptureTests {
+    func test_prepare_withMicPermission_preparesEngine() {
+        audioCapture.prepare()
+
+        XCTAssertEqual(audioEngineProvider.prepareCallCount, 1)
+    }
+
+    func test_prepare_withoutMicPermission_doesNotTouchEngine() {
+        permissionChecker.micGranted = false
+
+        audioCapture.prepare()
+
+        XCTAssertEqual(audioEngineProvider.prepareCallCount, 0)
+    }
+
+    func test_startCapture_logsLatencyUntilFirstBufferOnlyOnce() throws {
+        try audioCapture.startCapture()
+
+        audioEngineProvider.simulateBuffer(TestAudioBuffers.sine(duration: 0.1))
+        audioEngineProvider.simulateBuffer(TestAudioBuffers.sine(duration: 0.1))
+
+        let latencyLogs = logger.loggedMessages.filter { $0.message.contains("First audio buffer") }
+        XCTAssertEqual(latencyLogs.count, 1)
+        XCTAssertTrue(latencyLogs.first?.message.contains("ms") ?? false)
+    }
+
+    func test_startCapture_eachRecordingLogsItsOwnFirstBufferLatency() throws {
+        try audioCapture.startCapture()
+        audioEngineProvider.simulateBuffer(TestAudioBuffers.sine(duration: 0.1))
+        audioCapture.stopCapture()
+
+        try audioCapture.startCapture()
+        audioEngineProvider.simulateBuffer(TestAudioBuffers.sine(duration: 0.1))
+
+        XCTAssertEqual(logger.loggedMessages.filter { $0.message.contains("First audio buffer") }.count, 2)
+    }
+}
+
 // MARK: - Mocks
 
 private final class MockPermissionCheckerForAudio: PermissionCheckerProtocol {
@@ -80,24 +123,4 @@ private final class MockPermissionCheckerForAudio: PermissionCheckerProtocol {
     func requestAccessibilityAccess() -> Bool { true }
     func requestMicrophoneAccess() async -> Bool { true }
     func requestSpeechRecognitionAccess() async -> Bool { true }
-}
-
-final class MockAudioEngineProvider: AudioEngineProviderProtocol {
-    private(set) var startCalled = false
-    private(set) var stopCalled = false
-    private var bufferHandler: ((AVAudioPCMBuffer) -> Void)?
-
-    func start(bufferHandler: @escaping (AVAudioPCMBuffer) -> Void) throws {
-        startCalled = true
-        self.bufferHandler = bufferHandler
-    }
-
-    func stop() {
-        stopCalled = true
-        bufferHandler = nil
-    }
-
-    func simulateBuffer(_ buffer: AVAudioPCMBuffer) {
-        bufferHandler?(buffer)
-    }
 }

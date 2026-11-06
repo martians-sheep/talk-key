@@ -25,8 +25,59 @@ final class LocalFormatterTests: XCTestCase {
     // MARK: - フィラー除去
 
     func testRemovesFillerWords() async throws {
-        let result = try await formatter.format(text: "えーと今日はあの天気が良いです", mode: .memo)
+        let result = try await formatter.format(text: "えーと今日は、あの、天気が良いです", mode: .memo)
+        XCTAssertEqual(result, "今日は、天気が良いです")
+    }
+
+    // MARK: - フィラー除去（長音つきはどこでも消す）
+
+    func test_format_withLongVowelFillersInsideSentence_removesThem() async throws {
+        let result = try await formatter.format(text: "今日はえーと天気がうーん良いです", mode: .memo)
         XCTAssertEqual(result, "今日は天気が良いです")
+    }
+
+    func test_format_withFillerAtStartFollowedByComma_removesFillerAndComma() async throws {
+        let cases: [(String, String)] = [
+            ("あの、今日は晴れです", "今日は晴れです"),
+            ("まあ、いいか", "いいか"),
+            ("なんか、変だね", "変だね"),
+            ("その、問題はここです", "問題はここです"),
+            ("うーん、どうしよう", "どうしよう"),
+            ("えー、それでは始めます", "それでは始めます"),
+            ("あのー資料を見てください", "資料を見てください"),
+        ]
+        for (input, expected) in cases {
+            let result = try await formatter.format(text: input, mode: .memo)
+            XCTAssertEqual(result, expected, "input: \(input)")
+        }
+    }
+
+    func test_format_withChainedFillers_removesAll() async throws {
+        let result = try await formatter.format(text: "えーと、あの、なんか、それで行きましょう", mode: .memo)
+        XCTAssertEqual(result, "それで行きましょう")
+    }
+
+    func test_format_withFillerSeparatedBySpace_removesFiller() async throws {
+        let result = try await formatter.format(text: "あの 明日の件ですが", mode: .memo)
+        XCTAssertEqual(result, "明日の件ですが")
+    }
+
+    // MARK: - フィラーに似た意味のある語は残す
+
+    func test_format_withMeaningfulWordsResemblingFillers_keepsThem() async throws {
+        let cases = [
+            "あのファイルを開いて",
+            "なんかの資料があった",
+            "まあまあの出来です",
+            "そのまま進めてください",
+            "その件は了解です",
+            "今日はあの店に行く",
+            "それなんかいいね",
+        ]
+        for input in cases {
+            let result = try await formatter.format(text: input, mode: .memo)
+            XCTAssertEqual(result, input, "input: \(input)")
+        }
     }
 
     func testFillerRemovalPreservesMeaningfulWords() async throws {

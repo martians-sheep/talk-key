@@ -8,6 +8,7 @@ final class MockTranscriber: TranscriberProtocol {
     private(set) var stopTranscriptionCalled = false
     private(set) var fedBuffers: [AVAudioPCMBuffer] = []
     var startTranscriptionError: Error?
+    var stopTranscriptionError: Error?
     var transcriptionResult = TranscriptionResult(
         rawText: "mock transcription",
         formattedText: nil,
@@ -24,6 +25,9 @@ final class MockTranscriber: TranscriberProtocol {
 
     func stopTranscription() async throws -> TranscriptionResult {
         stopTranscriptionCalled = true
+        if let error = stopTranscriptionError {
+            throw error
+        }
         return transcriptionResult
     }
 

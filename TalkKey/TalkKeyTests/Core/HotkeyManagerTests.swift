@@ -427,9 +427,113 @@ final class HotkeyManagerTests: XCTestCase {
             }
         }
     }
+
+    // MARK: - Missed key-up detection
+
+    func testReleaseCheckFiresKeyUpWhenKeyIsNoLongerHeld() throws {
+        let keyState = MockKeyStateProvider()
+        let checkedManager = HotkeyManager(eventTapProvider: eventTapProvider, combo: HotkeyCombo(modifierKeyCode: nil, triggerKeyCode: 56), keyStateProvider: keyState)
+        var keyUpCount = 0
+        checkedManager.onKeyUp = { keyUpCount += 1 }
+        try checkedManager.start()
+
+        keyState.heldKeys = [56]
+        eventTapProvider.simulateKeyEvent(type: .keyDown, keyCode: 56)
+        checkedManager.releaseIfKeysNotHeld()
+        XCTAssertEqual(keyUpCount, 0, "Key is still held")
+
+        // 離した通知を取りこぼした
+        keyState.heldKeys = []
+        checkedManager.releaseIfKeysNotHeld()
+        XCTAssertEqual(keyUpCount, 1)
+        checkedManager.releaseIfKeysNotHeld()
+        XCTAssertEqual(keyUpCount, 1, "Should fire only once")
+        checkedManager.stop()
+    }
+
+    func testReleaseCheckDoesNothingWhenNotPressed() throws {
+        let keyState = MockKeyStateProvider()
+        let checkedManager = HotkeyManager(eventTapProvider: eventTapProvider, combo: HotkeyCombo(modifierKeyCode: nil, triggerKeyCode: 56), keyStateProvider: keyState)
+        var keyUpCalled = false
+        checkedManager.onKeyUp = { keyUpCalled = true }
+        try checkedManager.start()
+        checkedManager.releaseIfKeysNotHeld()
+        XCTAssertFalse(keyUpCalled)
+        checkedManager.stop()
+    }
+
+    func testReleaseCheckAllowsPressingAgainAfterMissedKeyUp() throws {
+        let keyState = MockKeyStateProvider()
+        let checkedManager = HotkeyManager(eventTapProvider: eventTapProvider, combo: HotkeyCombo(modifierKeyCode: nil, triggerKeyCode: 56), keyStateProvider: keyState)
+        var keyDownCount = 0
+        checkedManager.onKeyDown = { keyDownCount += 1 }
+        try checkedManager.start()
+
+        keyState.heldKeys = [56]
+        eventTapProvider.simulateKeyEvent(type: .keyDown, keyCode: 56)
+        keyState.heldKeys = []
+        checkedManager.releaseIfKeysNotHeld()
+        keyState.heldKeys = [56]
+        eventTapProvider.simulateKeyEvent(type: .keyDown, keyCode: 56)
+        XCTAssertEqual(keyDownCount, 2)
+        checkedManager.stop()
+    }
+
+    func testReleaseCheckInComboModeFiresKeyUpWhenTriggerIsNoLongerHeld() throws {
+        let keyState = MockKeyStateProvider()
+        let checkedManager = HotkeyManager(eventTapProvider: eventTapProvider, combo: HotkeyCombo(modifierKeyCode: 58, triggerKeyCode: 49), keyStateProvider: keyState)
+        var keyUpCount = 0
+        var keyDownCount = 0
+        checkedManager.onKeyUp = { keyUpCount += 1 }
+        checkedManager.onKeyDown = { keyDownCount += 1 }
+        try checkedManager.start()
+
+        keyState.heldKeys = [58, 49]
+        eventTapProvider.simulateKeyEvent(type: .keyDown, keyCode: 58)
+        eventTapProvider.simulateKeyEvent(type: .keyDown, keyCode: 49)
+        checkedManager.releaseIfKeysNotHeld()
+        XCTAssertEqual(keyUpCount, 0)
+
+        keyState.heldKeys = [58]
+        checkedManager.releaseIfKeysNotHeld()
+        XCTAssertEqual(keyUpCount, 1)
+
+        // 修飾キーは押したままなので、トリガーを押し直せばまた始まる
+        keyState.heldKeys = [58, 49]
+        eventTapProvider.simulateKeyEvent(type: .keyDown, keyCode: 49)
+        XCTAssertEqual(keyDownCount, 2)
+        checkedManager.stop()
+    }
+
+    func testReleaseCheckRunsPeriodicallyWhileKeyIsHeld() throws {
+        let keyState = MockKeyStateProvider()
+        let checkedManager = HotkeyManager(
+            eventTapProvider: eventTapProvider,
+            combo: HotkeyCombo(modifierKeyCode: nil, triggerKeyCode: 56),
+            keyStateProvider: keyState,
+            releaseCheckInterval: 0.05
+        )
+        let keyUp = expectation(description: "missed key-up is detected")
+        checkedManager.onKeyUp = { keyUp.fulfill() }
+        try checkedManager.start()
+
+        keyState.heldKeys = [56]
+        eventTapProvider.simulateKeyEvent(type: .keyDown, keyCode: 56)
+        keyState.heldKeys = []
+        wait(for: [keyUp], timeout: 1.0)
+        checkedManager.stop()
+    }
 }
 
 // MARK: - Mocks
+
+final class MockKeyStateProvider: KeyStateProviderProtocol {
+    var heldKeys: Set<CGKeyCode> = []
+
+    func isKeyDown(_ keyCode: CGKeyCode) -> Bool {
+        heldKeys.contains(keyCode)
+    }
+}
 
 private final class MockPermissionCheckerForHotkey: PermissionCheckerProtocol {
     var accessibilityGranted = true
