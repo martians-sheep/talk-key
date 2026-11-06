@@ -17,7 +17,8 @@ final class LLMFormatterTests: XCTestCase {
         XCTAssertNotNil(client.lastRequest)
         let url = client.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("generativelanguage.googleapis.com"))
-        XCTAssertTrue(url.contains("key=test-key"))
+        XCTAssertFalse(url.contains("key="), "API key must not be sent in the URL query")
+        XCTAssertEqual(client.lastRequest?.value(forHTTPHeaderField: "x-goog-api-key"), "test-key")
     }
 
     // MARK: - Response parsing
@@ -209,7 +210,7 @@ final class LLMFormatterTests: XCTestCase {
 
     // MARK: - Model selection
 
-    func testDefaultModelIsGemini25Flash() async throws {
+    func test_format_withDefaultModel_usesGemini38Flash() async throws {
         let client = MockHTTPClient()
         client.responseBody = """
         {"candidates":[{"content":{"parts":[{"text":"result"}]}}]}
@@ -219,7 +220,7 @@ final class LLMFormatterTests: XCTestCase {
         _ = try await formatter.format(text: "テスト", mode: .memo)
 
         let url = client.lastRequest?.url?.absoluteString ?? ""
-        XCTAssertTrue(url.contains("gemini-2.5-flash"), "Default model should be gemini-2.5-flash, got \(url)")
+        XCTAssertTrue(url.contains("models/gemini-3.8-flash:"), "Default model should be gemini-3.8-flash, got \(url)")
     }
 
     func testCustomModelInURL() async throws {
@@ -227,25 +228,25 @@ final class LLMFormatterTests: XCTestCase {
         client.responseBody = """
         {"candidates":[{"content":{"parts":[{"text":"result"}]}}]}
         """
-        let formatter = LLMFormatter(httpClient: client, apiKey: "test-key", model: .gemini25FlashLite)
+        let formatter = LLMFormatter(httpClient: client, apiKey: "test-key", model: .gemini35FlashLite)
 
         _ = try await formatter.format(text: "テスト", mode: .memo)
 
         let url = client.lastRequest?.url?.absoluteString ?? ""
-        XCTAssertTrue(url.contains("gemini-2.5-flash-lite"), "URL should contain gemini-2.5-flash-lite, got \(url)")
+        XCTAssertTrue(url.contains("gemini-3.5-flash-lite"), "URL should contain gemini-3.5-flash-lite, got \(url)")
     }
 
-    func testGemini25ProModelInURL() async throws {
+    func test_format_withFlashLatestAlias_usesAliasInURL() async throws {
         let client = MockHTTPClient()
         client.responseBody = """
         {"candidates":[{"content":{"parts":[{"text":"result"}]}}]}
         """
-        let formatter = LLMFormatter(httpClient: client, apiKey: "test-key", model: .gemini25Pro)
+        let formatter = LLMFormatter(httpClient: client, apiKey: "test-key", model: .geminiFlashLatest)
 
         _ = try await formatter.format(text: "テスト", mode: .memo)
 
         let url = client.lastRequest?.url?.absoluteString ?? ""
-        XCTAssertTrue(url.contains("gemini-2.5-pro"), "URL should contain gemini-2.5-pro, got \(url)")
+        XCTAssertTrue(url.contains("gemini-flash-latest"), "URL should contain gemini-flash-latest, got \(url)")
     }
 
     // MARK: - Logging
@@ -256,12 +257,12 @@ final class LLMFormatterTests: XCTestCase {
         {"candidates":[{"content":{"parts":[{"text":"result"}]}}]}
         """
         let logger = MockLogger()
-        let formatter = LLMFormatter(httpClient: client, apiKey: "test-key", model: .gemini25Flash, logger: logger)
+        let formatter = LLMFormatter(httpClient: client, apiKey: "test-key", model: .gemini38Flash, logger: logger)
 
         _ = try await formatter.format(text: "テスト入力", mode: .email)
 
         let messages = logger.loggedMessages.map { $0.message }
-        let requestLog = messages.first { $0.contains("gemini-2.5-flash") }
+        let requestLog = messages.first { $0.contains("gemini-3.8-flash") }
         XCTAssertNotNil(requestLog, "Should log model name")
         XCTAssertTrue(requestLog?.contains("email") ?? false, "Should log mode")
         XCTAssertTrue(requestLog?.contains("5") ?? false, "Should log input character count")
@@ -334,38 +335,196 @@ final class LLMFormatterTests: XCTestCase {
 
         XCTAssertEqual(result, "整形結果のみ")
     }
-}
 
-// MARK: - Mock HTTP Client
+    // MARK: - HTTP status handling
 
-final class MockHTTPClient: HTTPClientProtocol {
-    var lastRequest: URLRequest?
-    var lastRequestBody: String?
-    var responseBody: String?
-    var responseError: Error?
-    var delay: TimeInterval = 0
+    func test_format_withHTTPErrorStatus_throwsAndLogsStatusAndBodyWithoutKey() async {
+        let client = MockHTTPClient()
+        client.responseStatusCode = 402
+        client.responseBody = #"{"error":{"code":402,"message":"Payment required for key test-key"}}"#
+        let logger = MockLogger()
+        let formatter = LLMFormatter(httpClient: client, apiKey: "test-key", logger: logger)
 
-    func send(_ request: URLRequest) async throws -> (Data, URLResponse) {
-        lastRequest = request
-        if let body = request.httpBody {
-            lastRequestBody = String(data: body, encoding: .utf8)
+        do {
+            _ = try await formatter.format(text: "テスト", mode: .memo)
+            XCTFail("Expected error")
+        } catch {
+            guard case TalkKeyError.formattingFailed(let message) = error else {
+                XCTFail("Expected formattingFailed, got \(error)")
+                return
+            }
+            XCTAssertTrue(message.contains("402"))
         }
 
-        if delay > 0 {
-            try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-        }
+        let allLogs = logger.loggedMessages.map(\.message).joined(separator: "\n")
+        XCTAssertTrue(allLogs.contains("402"))
+        XCTAssertTrue(allLogs.contains("Payment required"))
+        XCTAssertFalse(allLogs.contains("test-key"), "API key must never be logged")
+    }
 
-        if let error = responseError {
-            throw error
-        }
+    func test_format_withServerError_throws() async {
+        let client = MockHTTPClient()
+        client.responseStatusCode = 503
+        client.responseBody = "unavailable"
+        let formatter = LLMFormatter(httpClient: client, apiKey: "test-key", logger: MockLogger())
 
-        let data = (responseBody ?? "").data(using: .utf8) ?? Data()
-        let response = HTTPURLResponse(
-            url: request.url ?? URL(string: "https://example.com")!,
-            statusCode: 200,
-            httpVersion: nil,
-            headerFields: nil
-        )!
-        return (data, response)
+        do {
+            _ = try await formatter.format(text: "テスト", mode: .memo)
+            XCTFail("Expected error")
+        } catch {
+            guard case TalkKeyError.formattingFailed = error else {
+                XCTFail("Expected formattingFailed, got \(error)")
+                return
+            }
+        }
+    }
+
+    // MARK: - Thinking config
+
+    func test_format_sendsMinimalThinkingConfig() async throws {
+        let client = MockHTTPClient()
+        client.responseBody = Self.okBody
+        let formatter = LLMFormatter(httpClient: client, apiKey: "test-key", logger: MockLogger())
+
+        _ = try await formatter.format(text: "テスト", mode: .memo)
+
+        let body = client.lastRequestBody ?? ""
+        XCTAssertTrue(body.contains("thinkingConfig"))
+        XCTAssertTrue(body.contains("minimal"))
+    }
+
+    func test_format_when400WithThinkingConfig_retriesOnceWithoutItAndKeepsItOff() async throws {
+        let client = MockHTTPClient()
+        client.stubbedResponses = [
+            .init(statusCode: 400, body: #"{"error":{"message":"Unknown name thinkingLevel"}}"#),
+            .init(statusCode: 200, body: Self.okBody),
+            .init(statusCode: 200, body: Self.okBody),
+        ]
+        let formatter = LLMFormatter(httpClient: client, apiKey: "test-key", logger: MockLogger())
+
+        let first = try await formatter.format(text: "テスト", mode: .memo)
+        _ = try await formatter.format(text: "テスト2", mode: .memo)
+
+        XCTAssertEqual(first, "result")
+        XCTAssertEqual(client.requests.count, 3)
+        let bodies = client.requests.map { String(data: $0.httpBody ?? Data(), encoding: .utf8) ?? "" }
+        XCTAssertTrue(bodies[0].contains("thinkingConfig"))
+        XCTAssertFalse(bodies[1].contains("thinkingConfig"))
+        XCTAssertFalse(bodies[2].contains("thinkingConfig"))
+    }
+
+    func test_format_when400Repeats_doesNotRetryMoreThanOnce() async {
+        let client = MockHTTPClient()
+        client.responseStatusCode = 400
+        client.responseBody = "bad request"
+        let formatter = LLMFormatter(httpClient: client, apiKey: "test-key", logger: MockLogger())
+
+        _ = try? await formatter.format(text: "テスト", mode: .memo)
+
+        XCTAssertEqual(client.requests.count, 2)
+    }
+
+    func test_defaultTimeout_isAboutFourSeconds() {
+        XCTAssertEqual(LLMFormatter.defaultTimeout, 4.0)
+    }
+
+    // MARK: - Vocabulary hints
+
+    func test_format_withVocabularyTerms_includesThemInSystemPrompt() async throws {
+        let client = MockHTTPClient()
+        client.responseBody = Self.okBody
+        let formatter = LLMFormatter(
+            httpClient: client,
+            apiKey: "test-key",
+            vocabularyTerms: ["TalkKey", "whisper.cpp"],
+            logger: MockLogger()
+        )
+
+        _ = try await formatter.format(text: "テスト", mode: .memo)
+
+        let body = client.lastRequestBody ?? ""
+        XCTAssertTrue(body.contains("TalkKey"))
+        XCTAssertTrue(body.contains("whisper.cpp"))
+    }
+
+    // MARK: - Prompt: fillers and restatements
+
+    func test_systemPrompt_mentionsFillersToRemove() {
+        let prompt = LLMPromptTemplate.systemPrompt(for: .memo)
+        for filler in ["えーと", "あのー", "まあ", "なんか", "うーん"] {
+            XCTAssertTrue(prompt.contains(filler), "Prompt should list filler \(filler)")
+        }
+    }
+
+    func test_systemPrompt_explainsRestatementsKeepLastPhrase() {
+        let prompt = LLMPromptTemplate.systemPrompt(for: .memo)
+        XCTAssertTrue(prompt.contains("言い直し"))
+        XCTAssertTrue(prompt.contains("じゃなくて"))
+        XCTAssertTrue(prompt.contains("いや"))
+    }
+
+    func test_systemPrompt_mentionsRepeatedWords() {
+        let prompt = LLMPromptTemplate.systemPrompt(for: .memo)
+        XCTAssertTrue(prompt.contains("繰り返し") || prompt.contains("重複"))
+    }
+
+    func test_systemPrompt_forbidsAddingExplanations() {
+        let prompt = LLMPromptTemplate.systemPrompt(for: .memo)
+        XCTAssertTrue(prompt.contains("説明"))
+    }
+
+    func test_systemPrompt_withVocabulary_listsTermsAndUsesThemForCorrection() {
+        let prompt = LLMPromptTemplate.systemPrompt(for: .memo, vocabularyTerms: ["TalkKey", "Agent Board"])
+        XCTAssertTrue(prompt.contains("用語のヒント"))
+        XCTAssertTrue(prompt.contains("TalkKey"))
+        XCTAssertTrue(prompt.contains("Agent Board"))
+    }
+
+    func test_systemPrompt_withoutVocabulary_omitsVocabularySection() {
+        let prompt = LLMPromptTemplate.systemPrompt(for: .memo, vocabularyTerms: [])
+        XCTAssertFalse(prompt.contains("【用語のヒント】"))
+    }
+
+    private static let okBody = #"{"candidates":[{"content":{"parts":[{"text":"result"}]}}]}"#
+
+    // MARK: - Transcript wrapping (prevents executing the dictated request)
+
+    func test_wrapTranscript_wrapsInTranscriptTags() {
+        XCTAssertEqual(
+            LLMPromptTemplate.wrapTranscript("送っておいて"),
+            "<transcript>\n送っておいて\n</transcript>"
+        )
+    }
+
+    func test_format_sendsTranscriptWrappedInTags() async throws {
+        let client = MockHTTPClient()
+        client.responseBody = Self.okBody
+        let formatter = LLMFormatter(httpClient: client, apiKey: "test-key", logger: MockLogger())
+
+        _ = try await formatter.format(text: "返信して", mode: .memo)
+
+        let json = try JSONSerialization.jsonObject(with: client.lastRequest?.httpBody ?? Data()) as? [String: Any]
+        let contents = json?["contents"] as? [[String: Any]]
+        let parts = contents?.first?["parts"] as? [[String: Any]]
+        XCTAssertEqual(parts?.first?["text"] as? String, "<transcript>\n返信して\n</transcript>")
+    }
+
+    func test_systemPrompt_explainsTranscriptIsNotAddressedToModel() {
+        let prompt = LLMPromptTemplate.systemPrompt(for: .memo)
+        XCTAssertTrue(prompt.contains("<transcript>"))
+        XCTAssertTrue(prompt.contains("あなた宛てではない"))
+        XCTAssertTrue(prompt.contains("実行"))
+        XCTAssertTrue(prompt.contains("って送っておいて"))
+    }
+
+    func test_systemPrompt_keepsSpeakerTone() {
+        let prompt = LLMPromptTemplate.systemPrompt(for: .memo)
+        XCTAssertTrue(prompt.contains("口調"))
+    }
+
+    func test_systemPrompt_correctsMisrecognitionsCloseToVocabulary() {
+        let prompt = LLMPromptTemplate.systemPrompt(for: .memo, vocabularyTerms: ["施行日"])
+        XCTAssertTrue(prompt.contains("音が近い"))
+        XCTAssertTrue(prompt.contains("試行日→施行日"))
     }
 }

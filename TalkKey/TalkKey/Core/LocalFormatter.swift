@@ -2,25 +2,29 @@ import Foundation
 
 final class LocalFormatter: FormatterProtocol {
 
-    private static let fillerPatterns: [String] = [
-        "えーと",
-        "えーっと",
-        "あのー",
-        "まあ",
-        "そのー",
-        "なんか",
-        "ええと",
-        "うーん",
-        "うーんと",
-    ]
+    // 長音つきなど、意味のある語と取り違えないフィラーは位置を問わず消す
+    private static let unambiguousFillerPattern =
+        "(?:えーっと|えーと|ええっと|ええと|えっと|あのー+|そのー+|うーんと|うーん|んーと)[、，,]?[ \\t　]*"
 
-    // フィラー除去用の正規表現パターン
-    // 「あの」は単独で使われる場合のみ除去（「あのね」「あのさ」等は残す）
-    private static let fillerRegexPattern: String = {
-        let escaped = fillerPatterns.map { NSRegularExpression.escapedPattern(for: $0) }
-        let anoPattern = "あの(?![ねさ人方子日時頃])"
-        return "(\(escaped.joined(separator: "|"))|\(anoPattern))"
-    }()
+    // 区切り（文頭・句読点・空白）の直後にあるときだけフィラーとみなす
+    private static let boundaryLookbehind = "(?:^|(?<=[、。，．,.！？!?\\s]))"
+
+    // 「えー」「あー」は「ねえー」「まあー」のような語の一部と区別するため、区切りの直後だけ消す
+    private static let shortVowelFillerPattern =
+        boundaryLookbehind + "(?:えー+|あー+|んー+|うー+)[、，,]?[ \\t　]*"
+
+    // 「あの」「その」「まあ」「なんか」は「あのファイル」「そのまま」「まあまあ」「なんかの」のように
+    // 意味を持つことが多いため、前後とも区切られて独立しているときだけ消す
+    private static let ambiguousFillerPattern =
+        boundaryLookbehind + "(?:あの|その|まあ|なんか)(?:[、，,][ \\t　]*|[ \\t　]+|$)"
+
+    private static let fillerRegexes: [NSRegularExpression] = [
+        unambiguousFillerPattern,
+        shortVowelFillerPattern,
+        ambiguousFillerPattern,
+    ].compactMap { try? NSRegularExpression(pattern: $0, options: [.anchorsMatchLines]) }
+
+    private static let maxFillerRemovalPasses = 5
 
     func format(text: String, mode: FormattingMode) async throws -> String {
         guard !text.isEmpty else { return "" }
@@ -46,10 +50,23 @@ final class LocalFormatter: FormatterProtocol {
     }
 
     private func removeFillers(_ text: String) -> String {
-        guard let regex = try? NSRegularExpression(
-            pattern: Self.fillerRegexPattern,
-            options: []
-        ) else { return text }
+        var result = text
+        // フィラーが連続すると、前のフィラーを消して初めて次が区切りの直後になるため、変化がなくなるまで繰り返す
+        for _ in 0..<Self.maxFillerRemovalPasses {
+            let before = result
+            for regex in Self.fillerRegexes {
+                let range = NSRange(result.startIndex..., in: result)
+                result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
+            }
+            if result == before { break }
+        }
+        return trimDanglingCommas(result)
+    }
+
+    private func trimDanglingCommas(_ text: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: "^[、，, \\t　]+|[、，, \\t　]+$", options: []) else {
+            return text
+        }
         let range = NSRange(text.startIndex..., in: text)
         return regex.stringByReplacingMatches(in: text, range: range, withTemplate: "")
     }

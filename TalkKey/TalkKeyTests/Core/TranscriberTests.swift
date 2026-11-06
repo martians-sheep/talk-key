@@ -9,7 +9,7 @@ final class TranscriberTests: XCTestCase {
     override func setUp() {
         super.setUp()
         speechProvider = MockSpeechRecognizerProvider()
-        transcriber = Transcriber(speechProvider: speechProvider)
+        transcriber = Transcriber(speechProvider: speechProvider, finalResultTimeout: 0.05, logger: MockLogger())
     }
 
     override func tearDown() {
@@ -50,6 +50,7 @@ final class TranscriberTests: XCTestCase {
 
         // Simulate timer fire
         transcriber.triggerAutoStopForTesting()
+        XCTAssertTrue(speechProvider.finishAudioCalled, "Auto-stop should end audio so the final result can still arrive")
 
         let result = try await transcriber.stopTranscription()
         XCTAssertEqual(result.rawText, "途中結果")
@@ -169,56 +170,70 @@ final class TranscriberTests: XCTestCase {
         transcriber.feedAudioBuffer(buffer)
         XCTAssertEqual(speechProvider.fedBuffers.count, 1)
     }
-}
 
-// MARK: - Mock Speech Provider
+    // MARK: - Waiting for the final result after endAudio
 
-final class MockSpeechRecognizerProvider: SpeechRecognizerProviderProtocol {
-    var requestedLocale: Locale?
-    var shouldFailOnStart = false
-    var onDeviceAvailable = true
-    private(set) var cancelCalled = false
-    private(set) var fedBuffers: [AVAudioPCMBuffer] = []
+    func test_stop_endsAudioThenWaitsForAsyncFinalResult() async throws {
+        let transcriber = Transcriber(speechProvider: speechProvider, finalResultTimeout: 2.0, logger: MockLogger())
+        speechProvider.finalTextDeliveredAfterFinish = "語尾まで入った最終結果"
+        try transcriber.startTranscription()
+        speechProvider.simulateResult(text: "語尾まで", isFinal: false)
 
-    private var resultHandler: ((String, Bool) -> Void)?
-    private var errorHandler: ((Error) -> Void)?
-    private var previousErrorHandler: ((Error) -> Void)?
+        let result = try await transcriber.stopTranscription()
 
-    var supportsOnDeviceRecognition: Bool { onDeviceAvailable }
-
-    func startRecognition(
-        locale: Locale,
-        resultHandler: @escaping (String, Bool) -> Void,
-        errorHandler: @escaping (Error) -> Void
-    ) throws {
-        if shouldFailOnStart {
-            throw TalkKeyError.transcriptionFailed("Speech recognition failed to start")
-        }
-        requestedLocale = locale
-        self.resultHandler = resultHandler
-        self.errorHandler = errorHandler
+        XCTAssertEqual(result.rawText, "語尾まで入った最終結果")
+        XCTAssertEqual(speechProvider.callOrder, ["start", "finishAudio", "cancel"])
     }
 
-    func appendAudioBuffer(_ buffer: AVAudioPCMBuffer) {
-        fedBuffers.append(buffer)
+    func test_stop_whenFinalResultNeverArrives_returnsLatestPartialAfterTimeout() async throws {
+        try transcriber.startTranscription()
+        speechProvider.simulateResult(text: "最後の途中結果", isFinal: false)
+
+        let result = try await transcriber.stopTranscription()
+
+        XCTAssertEqual(result.rawText, "最後の途中結果")
     }
 
-    func cancelRecognition() {
-        cancelCalled = true
-        previousErrorHandler = errorHandler
-        resultHandler = nil
-        errorHandler = nil
+    func test_stop_whenNoSpeechErrorArrivesWhileWaiting_returnsEmptyResult() async throws {
+        let transcriber = Transcriber(speechProvider: speechProvider, finalResultTimeout: 2.0, logger: MockLogger())
+        speechProvider.errorDeliveredAfterFinish = NSError(domain: "kAFAssistantErrorDomain", code: 1101)
+        try transcriber.startTranscription()
+
+        let result = try await transcriber.stopTranscription()
+
+        XCTAssertEqual(result.rawText, "")
     }
 
-    func simulateResult(text: String, isFinal: Bool) {
-        resultHandler?(text, isFinal)
+    func test_stop_resultIsMarkedAsApple() async throws {
+        try transcriber.startTranscription()
+        speechProvider.simulateResult(text: "テスト", isFinal: true)
+
+        let result = try await transcriber.stopTranscription()
+
+        XCTAssertEqual(result.engine, .apple)
     }
 
-    func simulateError(_ error: Error) {
-        errorHandler?(error)
+    // MARK: - Contextual strings
+
+    func test_start_passesVocabularyAsContextualStrings() throws {
+        let transcriber = Transcriber(
+            speechProvider: speechProvider,
+            contextualStrings: ["TalkKey", "施行日"],
+            logger: MockLogger()
+        )
+
+        try transcriber.startTranscription()
+
+        XCTAssertEqual(speechProvider.requestedContextualStrings, ["TalkKey", "施行日"])
     }
 
-    func simulateStaleError(_ error: Error) {
-        previousErrorHandler?(error)
+    func test_stop_whenErrorArrivesAfterPartialText_returnsPartialText() async throws {
+        try transcriber.startTranscription()
+        speechProvider.simulateResult(text: "ここまでは聞こえた", isFinal: false)
+        speechProvider.simulateError(NSError(domain: "kAFAssistantErrorDomain", code: 1110))
+
+        let result = try await transcriber.stopTranscription()
+
+        XCTAssertEqual(result.rawText, "ここまでは聞こえた")
     }
 }

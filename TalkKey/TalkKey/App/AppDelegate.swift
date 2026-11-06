@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import UserNotifications
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -10,6 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var keychainHelper: KeychainHelper?
     private var hotkeySettingsStore: HotkeySettingsStore?
     private var settingsWindow: NSWindow?
+    private let launchAtLogin = LaunchAtLoginManager()
+    private var launchAtLoginItem: NSMenuItem?
     private var logViewerWindow: LogViewerWindow?
 
     private var statusMenuItem: NSMenuItem?
@@ -20,12 +23,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var llmToggleItem: NSMenuItem?
     private var modeMenuItems: [FormattingMode: NSMenuItem] = [:]
     private var modelMenuItems: [GeminiModel: NSMenuItem] = [:]
+    private var providerMenuItems: [LLMProvider: NSMenuItem] = [:]
     private var historyMenuItem: NSMenuItem?
 
     private var llmEnabled: Bool = false
     private var currentMode: FormattingMode = .memo
     private var currentModel: GeminiModel = .defaultModel
-    private var apiKey: String = ""
+    private var currentProvider: LLMProvider = .defaultProvider
+    private var claudeModel: String = ClaudeFormatter.defaultModel
+    // キーの値は整形の呼び出しにだけ使い、画面やログには出さない
+    private var geminiAPIKey: String = ""
+    private var claudeAPIKey: String = ""
+
+    private let recognitionSettingsStore = RecognitionSettingsStore()
+    private var recognitionSettings: RecognitionSettings!
+    // マイクの準備を使い回すため、サービスを作り直しても同じものを使う
+    private let audioEngineProvider = SystemAudioEngineProvider()
+    private var whisperServerManager: WhisperServerManager?
+    private let isRunningTests = RuntimeEnvironment.isRunningTests()
+
+    private enum DefaultsKeys {
+        static let selectedModel = "selectedModel"
+        static let llmProvider = "llmProvider"
+        static let claudeModel = "claudeModel"
+        static let llmEnabled = "llmEnabled"
+    }
+
+    private enum SettingsFieldTag {
+        static let geminiKey = 100
+        static let claudeKey = 101
+        static let whisperURL = 102
+        static let vocabularyHint = 103
+        static let claudeModel = 104
+    }
 
     // Hotkey recording UI state
     private enum HotkeyRecordingStep {
@@ -50,17 +80,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         permissionManager = PermissionManager(checker: checker)
 
         keychainHelper = KeychainHelper()
-        apiKey = (try? keychainHelper?.load(key: "apiKey")) ?? ""
-        if let raw = UserDefaults.standard.string(forKey: "selectedModel"),
-           let model = GeminiModel(rawValue: raw) {
-            currentModel = model
-        } else {
-            currentModel = .defaultModel
-            UserDefaults.standard.set(GeminiModel.defaultModel.rawValue, forKey: "selectedModel")
-        }
+        loadLLMSettings()
+        recognitionSettings = recognitionSettingsStore.load()
         setupVoiceInputService(permissionChecker: checker)
         setupMenuBar()
         requestPermissionsOnLaunch()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        // 自分で起動した whisper-server だけを止める（共用のサーバーには触れない）
+        whisperServerManager?.shutdown()
+    }
+
+    private func loadLLMSettings() {
+        let defaults = UserDefaults.standard
+        // 廃止済みのモデル名が保存されていても既定に移して保存し直す
+        currentModel = GeminiModel(storedValue: defaults.string(forKey: DefaultsKeys.selectedModel))
+        defaults.set(currentModel.rawValue, forKey: DefaultsKeys.selectedModel)
+        currentProvider = LLMProvider(storedValue: defaults.string(forKey: DefaultsKeys.llmProvider))
+        if let stored = defaults.string(forKey: DefaultsKeys.claudeModel), !stored.isEmpty {
+            claudeModel = stored
+        }
+        llmEnabled = defaults.bool(forKey: DefaultsKeys.llmEnabled)
+        geminiAPIKey = loadAPIKey(for: .gemini)
+        claudeAPIKey = loadAPIKey(for: .claude)
+    }
+
+    private func loadAPIKey(for provider: LLMProvider) -> String {
+        do {
+            return try keychainHelper?.load(key: provider.keychainAccount) ?? ""
+        } catch {
+            FileLogger.shared.error("Failed to load \(provider.displayName) API key: \(error.localizedDescription)")
+            return ""
+        }
+    }
+
+    private func apiKey(for provider: LLMProvider) -> String {
+        switch provider {
+        case .claude: return claudeAPIKey
+        case .gemini: return geminiAPIKey
+        }
+    }
+
+    /// 起動直後の最初の録音を待たせないよう、マイクと whisper-server の準備を裏で済ませる
+    private func warmUpRecognition() {
+        guard !isRunningTests else { return }
+        voiceInputService?.prepare()
+        guard let manager = whisperServerManager else { return }
+        Task.detached(priority: .utility) {
+            await manager.warmUp()
+        }
     }
 
     private func requestPermissionsOnLaunch() {
@@ -82,17 +151,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             await MainActor.run {
                 updatePermissionDisplay()
                 setupHotkeyManager()
+                warmUpRecognition()
             }
         }
     }
 
     private func setupVoiceInputService(permissionChecker: PermissionCheckerProtocol) {
-        let audioCapture = AudioCapture(permissionChecker: permissionChecker)
-        let transcriber = Transcriber()
+        let audioCapture = AudioCapture(permissionChecker: permissionChecker, engineProvider: audioEngineProvider)
+        let transcriber = makeTranscriber()
         let notificationSender = SystemNotificationSender()
 
         let localFormatter = LocalFormatter()
-        let llmFormatter = apiKey.isEmpty ? nil : LLMFormatter(apiKey: apiKey, model: currentModel)
+        let llmFormatter = makeLLMFormatter()
         let formatter = FormattingPipeline(
             localFormatter: localFormatter,
             llmFormatter: llmFormatter,
@@ -118,6 +188,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         service.notificationSender = notificationSender
         voiceInputService = service
+    }
+
+    private func makeTranscriber() -> TranscriberProtocol {
+        let settings = recognitionSettings ?? recognitionSettingsStore.load()
+        let appleTranscriber = Transcriber(contextualStrings: settings.vocabularyTerms)
+
+        guard settings.engine == .whisperWithAppleFallback else {
+            replaceWhisperServerManager(with: nil)
+            return appleTranscriber
+        }
+
+        let configuration = settings.whisperServerConfiguration
+        if whisperServerManager?.configuration != configuration {
+            let logURL = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Library/Logs/TalkKey/whisper-server.log")
+            replaceWhisperServerManager(with: WhisperServerManager(configuration: configuration, outputLogURL: logURL))
+        }
+        guard let manager = whisperServerManager else { return appleTranscriber }
+
+        let whisperTranscriber = WhisperTranscriber(serverProvider: manager, prompt: settings.whisperPrompt)
+        return FallbackTranscriber(primary: whisperTranscriber, fallback: appleTranscriber)
+    }
+
+    private func replaceWhisperServerManager(with manager: WhisperServerManager?) {
+        whisperServerManager?.shutdown()
+        whisperServerManager = manager
+    }
+
+    private func makeLLMFormatter() -> FormatterProtocol? {
+        let key = apiKey(for: currentProvider)
+        guard !key.isEmpty else { return nil }
+        let vocabulary = recognitionSettings?.vocabularyTerms ?? []
+        switch currentProvider {
+        case .claude:
+            return ClaudeFormatter(apiKey: key, model: claudeModel, vocabularyTerms: vocabulary)
+        case .gemini:
+            return LLMFormatter(apiKey: key, model: currentModel, vocabularyTerms: vocabulary)
+        }
     }
 
     private func setupHotkeyManager() {
@@ -152,8 +260,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // 画面用の currentStatus は main.async で遅れて反映されるため、押した・離したの判定はサービスの状態で行う
     private func handleHotkeyDown() {
-        guard currentStatus == .idle else { return }
+        guard voiceInputService?.status().canStartRecording == true else { return }
         do {
             try voiceInputService?.startRecording()
         } catch {
@@ -163,7 +272,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func handleHotkeyUp() {
-        guard currentStatus == .recording else { return }
+        guard voiceInputService?.status() == .recording else { return }
         Task {
             do {
                 let result = try await voiceInputService?.stopRecording()
@@ -222,7 +331,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         llmHeader.isEnabled = false
         menu.addItem(llmHeader)
 
-        llmToggleItem = NSMenuItem(title: "LLM整形: OFF", action: #selector(toggleLLM), keyEquivalent: "")
+        llmToggleItem = NSMenuItem(title: "LLM整形: \(llmEnabled ? "ON" : "OFF")", action: #selector(toggleLLM), keyEquivalent: "")
         llmToggleItem?.target = self
         menu.addItem(llmToggleItem!)
 
@@ -254,8 +363,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             modelMenu.addItem(item)
             modelMenuItems[model] = item
         }
-        let modelItem = NSMenuItem(title: "モデル", action: nil, keyEquivalent: "")
+        let modelItem = NSMenuItem(title: "Gemini モデル", action: nil, keyEquivalent: "")
         modelItem.submenu = modelMenu
+
+        let providerMenu = NSMenu()
+        for provider in LLMProvider.allCases {
+            let item = NSMenuItem(title: provider.displayName, action: #selector(selectProvider(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = provider.rawValue
+            item.state = provider == currentProvider ? .on : .off
+            providerMenu.addItem(item)
+            providerMenuItems[provider] = item
+        }
+        let providerItem = NSMenuItem(title: "整形 LLM", action: nil, keyEquivalent: "")
+        providerItem.submenu = providerMenu
+        menu.addItem(providerItem)
         menu.addItem(modelItem)
 
         menu.addItem(NSMenuItem.separator())
@@ -275,6 +397,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let logItem = NSMenuItem(title: "ログを表示...", action: #selector(openLogViewer), keyEquivalent: "l")
         logItem.target = self
         menu.addItem(logItem)
+
+        launchAtLoginItem = NSMenuItem(title: "ログイン時に起動", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        launchAtLoginItem?.target = self
+        menu.addItem(launchAtLoginItem!)
+        updateLaunchAtLoginItem()
 
         menu.addItem(NSMenuItem.separator())
 
@@ -350,9 +477,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         permissionManager?.openAccessibilitySettings()
     }
 
+    @objc private func toggleLaunchAtLogin() {
+        do {
+            let status = try launchAtLogin.toggle()
+            updateLaunchAtLoginItem()
+            if status == .requiresApproval {
+                // 承認はシステム設定の「ログイン項目」で利用者が行う
+                SMAppService.openSystemSettingsLoginItems()
+            }
+        } catch {
+            SystemNotificationSender().send(title: "TalkKey", message: "ログイン時の起動を切り替えられませんでした: \(error.localizedDescription)")
+        }
+    }
+
+    private func updateLaunchAtLoginItem() {
+        switch launchAtLogin.status {
+        case .enabled:
+            launchAtLoginItem?.state = .on
+            launchAtLoginItem?.title = "ログイン時に起動"
+        case .requiresApproval:
+            launchAtLoginItem?.state = .mixed
+            launchAtLoginItem?.title = "ログイン時に起動（システム設定で許可が必要）"
+        case .disabled:
+            launchAtLoginItem?.state = .off
+            launchAtLoginItem?.title = "ログイン時に起動"
+        }
+    }
+
     @objc private func toggleLLM() {
-        llmEnabled.toggle()
+        setLLMEnabled(!llmEnabled)
+    }
+
+    // 以前は切り替えても整形パイプラインを作り直しておらず、反映されなかった
+    private func setLLMEnabled(_ enabled: Bool) {
+        llmEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: DefaultsKeys.llmEnabled)
         llmToggleItem?.title = "LLM整形: \(llmEnabled ? "ON" : "OFF")"
+        rebuildVoiceInputService()
+    }
+
+    @objc private func selectProvider(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String,
+              let provider = LLMProvider(rawValue: rawValue) else { return }
+        setProvider(provider)
+    }
+
+    private func setProvider(_ provider: LLMProvider) {
+        currentProvider = provider
+        for (p, item) in providerMenuItems {
+            item.state = p == provider ? .on : .off
+        }
+        UserDefaults.standard.set(provider.rawValue, forKey: DefaultsKeys.llmProvider)
+        rebuildVoiceInputService()
     }
 
     @objc private func selectMode(_ sender: NSMenuItem) {
@@ -371,7 +547,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for (m, item) in modelMenuItems {
             item.state = m == model ? .on : .off
         }
-        UserDefaults.standard.set(model.rawValue, forKey: "selectedModel")
+        UserDefaults.standard.set(model.rawValue, forKey: DefaultsKeys.selectedModel)
         rebuildVoiceInputService()
     }
 
@@ -379,6 +555,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard currentStatus != .recording else { return }
         let checker = SystemPermissionChecker()
         setupVoiceInputService(permissionChecker: checker)
+        warmUpRecognition()
     }
 
     private func modeLabel(for mode: FormattingMode) -> String {
@@ -440,7 +617,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 450),
+            contentRect: NSRect(x: 0, y: 0, width: 460, height: 720),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -452,37 +629,80 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let contentView = NSView(frame: window.contentView!.bounds)
         contentView.autoresizingMask = [.width, .height]
 
-        var y: CGFloat = 410
+        var y: CGFloat = 680
+        let settings = recognitionSettings ?? recognitionSettingsStore.load()
 
-        // API Key section
-        let apiKeyLabel = NSTextField(labelWithString: "APIキー (Gemini):")
-        apiKeyLabel.frame = NSRect(x: 20, y: y, width: 380, height: 20)
-        contentView.addSubview(apiKeyLabel)
-        y -= 30
+        // Recognition section
+        addSectionHeader("音声認識", to: contentView, y: &y)
 
-        let apiKeyField = NSSecureTextField(frame: NSRect(x: 20, y: y, width: 280, height: 24))
-        apiKeyField.placeholderString = "APIキーを入力..."
-        apiKeyField.stringValue = apiKey
-        apiKeyField.tag = 100
-        contentView.addSubview(apiKeyField)
+        let enginePopup = NSPopUpButton(frame: NSRect(x: 20, y: y, width: 340, height: 24))
+        for engine in RecognitionEngine.allCases {
+            enginePopup.addItem(withTitle: engine.displayName)
+            enginePopup.lastItem?.representedObject = engine.rawValue
+        }
+        enginePopup.selectItem(withTitle: settings.engine.displayName)
+        enginePopup.target = self
+        enginePopup.action = #selector(settingsSelectEngine(_:))
+        contentView.addSubview(enginePopup)
+        y -= 32
 
-        let saveButton = NSButton(title: "保存", target: self, action: #selector(saveAPIKey(_:)))
-        saveButton.frame = NSRect(x: 310, y: y, width: 50, height: 24)
-        saveButton.tag = 100
-        contentView.addSubview(saveButton)
+        addLabel("whisper-server の URL（応答しなければ 8179 で自動起動）:", to: contentView, y: &y)
+        addTextField(
+            value: settings.whisperServerURL.absoluteString,
+            placeholder: RecognitionSettingsStore.defaultWhisperServerURL.absoluteString,
+            tag: SettingsFieldTag.whisperURL,
+            saveAction: #selector(saveWhisperURL(_:)),
+            to: contentView,
+            y: &y
+        )
 
-        let deleteButton = NSButton(title: "削除", target: self, action: #selector(deleteAPIKey(_:)))
-        deleteButton.frame = NSRect(x: 365, y: y, width: 40, height: 24)
-        deleteButton.tag = 100
-        contentView.addSubview(deleteButton)
-        y -= 40
+        addLabel("用語のヒント（読点・カンマ・改行で区切る）:", to: contentView, y: &y)
+        addTextField(
+            value: settings.vocabularyHint,
+            placeholder: "例: TalkKey、施行日、新旧対照表",
+            tag: SettingsFieldTag.vocabularyHint,
+            saveAction: #selector(saveVocabularyHint(_:)),
+            to: contentView,
+            y: &y
+        )
+        y -= 8
 
-        // Model selection section
-        let modelLabel = NSTextField(labelWithString: "モデル:")
-        modelLabel.frame = NSRect(x: 20, y: y, width: 380, height: 20)
-        contentView.addSubview(modelLabel)
-        y -= 30
+        // Formatting section
+        addSectionHeader("整形", to: contentView, y: &y)
 
+        let llmCheck = NSButton(checkboxWithTitle: "LLM整形を有効にする", target: self, action: #selector(settingsToggleLLM(_:)))
+        llmCheck.frame = NSRect(x: 20, y: y, width: 200, height: 20)
+        llmCheck.state = llmEnabled ? .on : .off
+        contentView.addSubview(llmCheck)
+
+        let providerPopup = NSPopUpButton(frame: NSRect(x: 230, y: y - 2, width: 130, height: 24))
+        for provider in LLMProvider.allCases {
+            providerPopup.addItem(withTitle: provider.displayName)
+            providerPopup.lastItem?.representedObject = provider.rawValue
+        }
+        providerPopup.selectItem(withTitle: currentProvider.displayName)
+        providerPopup.target = self
+        providerPopup.action = #selector(settingsSelectProvider(_:))
+        contentView.addSubview(providerPopup)
+        y -= 32
+
+        addLabel("Claude APIキー:", to: contentView, y: &y)
+        addAPIKeyRow(provider: .claude, tag: SettingsFieldTag.claudeKey, to: contentView, y: &y)
+
+        addLabel("Claude モデル:", to: contentView, y: &y)
+        addTextField(
+            value: claudeModel,
+            placeholder: ClaudeFormatter.defaultModel,
+            tag: SettingsFieldTag.claudeModel,
+            saveAction: #selector(saveClaudeModel(_:)),
+            to: contentView,
+            y: &y
+        )
+
+        addLabel("Gemini APIキー:", to: contentView, y: &y)
+        addAPIKeyRow(provider: .gemini, tag: SettingsFieldTag.geminiKey, to: contentView, y: &y)
+
+        addLabel("Gemini モデル:", to: contentView, y: &y)
         let modelPopup = NSPopUpButton(frame: NSRect(x: 20, y: y, width: 280, height: 24))
         modelPopup.removeAllItems()
         for model in GeminiModel.allCases {
@@ -493,18 +713,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         modelPopup.target = self
         modelPopup.action = #selector(settingsSelectModel(_:))
         contentView.addSubview(modelPopup)
-        y -= 40
+        y -= 32
 
-        // LLM Formatting section
-        let llmCheck = NSButton(checkboxWithTitle: "LLM整形を有効にする", target: self, action: #selector(settingsToggleLLM(_:)))
-        llmCheck.frame = NSRect(x: 20, y: y, width: 380, height: 20)
-        llmCheck.state = llmEnabled ? .on : .off
-        contentView.addSubview(llmCheck)
-        y -= 30
-
-        // Local Formatting section
         let localCheck = NSButton(checkboxWithTitle: "ローカル整形を有効にする", target: nil, action: nil)
-        localCheck.frame = NSRect(x: 20, y: y, width: 380, height: 20)
+        localCheck.frame = NSRect(x: 20, y: y, width: 200, height: 20)
         localCheck.state = .on
         localCheck.isEnabled = false
         contentView.addSubview(localCheck)
@@ -585,29 +797,113 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    // MARK: - Settings window helpers
+
+    private func addSectionHeader(_ title: String, to view: NSView, y: inout CGFloat) {
+        let label = NSTextField(labelWithString: title)
+        label.frame = NSRect(x: 20, y: y, width: 420, height: 20)
+        label.font = .boldSystemFont(ofSize: 13)
+        view.addSubview(label)
+        y -= 28
+    }
+
+    private func addLabel(_ title: String, to view: NSView, y: inout CGFloat) {
+        let label = NSTextField(labelWithString: title)
+        label.frame = NSRect(x: 20, y: y, width: 420, height: 18)
+        label.font = .systemFont(ofSize: 12)
+        view.addSubview(label)
+        y -= 24
+    }
+
+    private func addTextField(
+        value: String,
+        placeholder: String,
+        tag: Int,
+        saveAction: Selector,
+        to view: NSView,
+        y: inout CGFloat
+    ) {
+        let field = NSTextField(frame: NSRect(x: 20, y: y, width: 340, height: 24))
+        field.stringValue = value
+        field.placeholderString = placeholder
+        field.tag = tag
+        view.addSubview(field)
+
+        let saveButton = NSButton(title: "保存", target: self, action: saveAction)
+        saveButton.frame = NSRect(x: 365, y: y, width: 60, height: 24)
+        view.addSubview(saveButton)
+        y -= 34
+    }
+
+    private func addAPIKeyRow(provider: LLMProvider, tag: Int, to view: NSView, y: inout CGFloat) {
+        let field = NSSecureTextField(frame: NSRect(x: 20, y: y, width: 280, height: 24))
+        // 登録済みのキーは読み出して表示しない
+        field.placeholderString = apiKey(for: provider).isEmpty ? "APIキーを入力..." : "登録済み（変更するときだけ入力）"
+        field.tag = tag
+        view.addSubview(field)
+
+        let saveButton = NSButton(title: "保存", target: self, action: #selector(saveAPIKey(_:)))
+        saveButton.frame = NSRect(x: 305, y: y, width: 55, height: 24)
+        saveButton.identifier = NSUserInterfaceItemIdentifier(provider.rawValue)
+        view.addSubview(saveButton)
+
+        let deleteButton = NSButton(title: "削除", target: self, action: #selector(deleteAPIKey(_:)))
+        deleteButton.frame = NSRect(x: 365, y: y, width: 60, height: 24)
+        deleteButton.identifier = NSUserInterfaceItemIdentifier(provider.rawValue)
+        view.addSubview(deleteButton)
+        y -= 34
+    }
+
+    private func settingsField(tag: Int) -> NSTextField? {
+        settingsWindow?.contentView?.subviews
+            .compactMap { $0 as? NSTextField }
+            .first { $0.tag == tag && $0.isEditable }
+    }
+
+    private func provider(of sender: NSButton) -> LLMProvider? {
+        sender.identifier.flatMap { LLMProvider(rawValue: $0.rawValue) }
+    }
+
+    private func keyFieldTag(for provider: LLMProvider) -> Int {
+        provider == .claude ? SettingsFieldTag.claudeKey : SettingsFieldTag.geminiKey
+    }
+
     @objc private func saveAPIKey(_ sender: NSButton) {
-        guard let contentView = settingsWindow?.contentView else { return }
-        guard let field = contentView.subviews.compactMap({ $0 as? NSSecureTextField }).first else { return }
-        let key = field.stringValue
+        guard let provider = provider(of: sender),
+              let field = settingsField(tag: keyFieldTag(for: provider)) else { return }
+        let key = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return }
         do {
-            try keychainHelper?.save(key: "apiKey", value: key)
-            apiKey = key
+            try keychainHelper?.save(key: provider.keychainAccount, value: key)
+            switch provider {
+            case .claude: claudeAPIKey = key
+            case .gemini: geminiAPIKey = key
+            }
+            field.stringValue = ""
+            field.placeholderString = "登録済み（変更するときだけ入力）"
+            FileLogger.shared.info("\(provider.displayName) API key saved")
             rebuildVoiceInputService()
         } catch {
-            FileLogger.shared.error("Failed to save API key: \(error.localizedDescription)")
+            FileLogger.shared.error("Failed to save \(provider.displayName) API key: \(error.localizedDescription)")
         }
     }
 
     @objc private func deleteAPIKey(_ sender: NSButton) {
+        guard let provider = provider(of: sender) else { return }
         do {
-            try keychainHelper?.delete(key: "apiKey")
-            apiKey = ""
-            if let field = settingsWindow?.contentView?.subviews.compactMap({ $0 as? NSSecureTextField }).first {
-                field.stringValue = ""
+            try keychainHelper?.delete(key: provider.keychainAccount)
+            switch provider {
+            case .claude: claudeAPIKey = ""
+            case .gemini: geminiAPIKey = ""
             }
+            if let field = settingsField(tag: keyFieldTag(for: provider)) {
+                field.stringValue = ""
+                field.placeholderString = "APIキーを入力..."
+            }
+            FileLogger.shared.info("\(provider.displayName) API key deleted")
+            rebuildVoiceInputService()
         } catch {
-            FileLogger.shared.error("Failed to delete API key: \(error.localizedDescription)")
+            FileLogger.shared.error("Failed to delete \(provider.displayName) API key: \(error.localizedDescription)")
         }
     }
 
@@ -618,7 +914,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for (m, item) in modelMenuItems {
             item.state = m == model ? .on : .off
         }
-        UserDefaults.standard.set(model.rawValue, forKey: "selectedModel")
+        UserDefaults.standard.set(model.rawValue, forKey: DefaultsKeys.selectedModel)
+        rebuildVoiceInputService()
+    }
+
+    @objc private func settingsSelectProvider(_ sender: NSPopUpButton) {
+        guard let rawValue = sender.selectedItem?.representedObject as? String,
+              let provider = LLMProvider(rawValue: rawValue) else { return }
+        setProvider(provider)
+    }
+
+    @objc private func saveClaudeModel(_ sender: NSButton) {
+        guard let field = settingsField(tag: SettingsFieldTag.claudeModel) else { return }
+        let model = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        claudeModel = model.isEmpty ? ClaudeFormatter.defaultModel : model
+        field.stringValue = claudeModel
+        UserDefaults.standard.set(claudeModel, forKey: DefaultsKeys.claudeModel)
+        rebuildVoiceInputService()
+    }
+
+    @objc private func settingsSelectEngine(_ sender: NSPopUpButton) {
+        guard let rawValue = sender.selectedItem?.representedObject as? String,
+              let engine = RecognitionEngine(rawValue: rawValue) else { return }
+        updateRecognitionSettings { $0.engine = engine }
+    }
+
+    @objc private func saveWhisperURL(_ sender: NSButton) {
+        guard let field = settingsField(tag: SettingsFieldTag.whisperURL) else { return }
+        guard let url = RecognitionSettingsStore.parseServerURL(field.stringValue) else {
+            field.stringValue = recognitionSettings.whisperServerURL.absoluteString
+            NSSound.beep()
+            return
+        }
+        updateRecognitionSettings { $0.whisperServerURL = url }
+    }
+
+    @objc private func saveVocabularyHint(_ sender: NSButton) {
+        guard let field = settingsField(tag: SettingsFieldTag.vocabularyHint) else { return }
+        updateRecognitionSettings { $0.vocabularyHint = field.stringValue }
+    }
+
+    private func updateRecognitionSettings(_ change: (inout RecognitionSettings) -> Void) {
+        var settings = recognitionSettings ?? recognitionSettingsStore.load()
+        change(&settings)
+        recognitionSettings = settings
+        recognitionSettingsStore.save(settings)
         rebuildVoiceInputService()
     }
 
@@ -770,8 +1110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func settingsToggleLLM(_ sender: NSButton) {
-        llmEnabled = sender.state == .on
-        llmToggleItem?.title = "LLM整形: \(llmEnabled ? "ON" : "OFF")"
+        setLLMEnabled(sender.state == .on)
     }
 
     @objc private func openLogViewer() {

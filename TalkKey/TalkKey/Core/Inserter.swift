@@ -1,6 +1,8 @@
 import AppKit
 
 protocol PasteboardProviderProtocol: AnyObject {
+    /// 内容が書き換わるたびに増える番号。戻す前に、ほかのアプリや利用者が書き換えていないかを見る
+    var changeCount: Int { get }
     func backup() -> [PasteboardItem]
     func setText(_ text: String)
     func restore(items: [PasteboardItem])
@@ -11,6 +13,10 @@ protocol KeyEventSenderProtocol: AnyObject {
 }
 
 final class Inserter: InserterProtocol {
+    /// 貼り付けてからクリップボードを元に戻すまでの待ち時間。VS Code・Chrome・Slack などは
+    /// ペーストを遅れて読むため、短いと元の内容が貼られてしまう
+    static let defaultRestoreDelay: TimeInterval = 0.5
+
     private let pasteboardProvider: PasteboardProviderProtocol
     private let keyEventSender: KeyEventSenderProtocol
     private let restoreDelay: TimeInterval
@@ -19,7 +25,7 @@ final class Inserter: InserterProtocol {
     init(
         pasteboardProvider: PasteboardProviderProtocol = SystemPasteboardProvider(),
         keyEventSender: KeyEventSenderProtocol = SystemKeyEventSender(),
-        restoreDelay: TimeInterval = 0.1,
+        restoreDelay: TimeInterval = Inserter.defaultRestoreDelay,
         logger: LoggerProtocol = FileLogger.shared
     ) {
         self.pasteboardProvider = pasteboardProvider
@@ -34,6 +40,7 @@ final class Inserter: InserterProtocol {
         logger.debug("Inserting text (\(text.count) chars)")
         let backedUpItems = pasteboardProvider.backup()
         pasteboardProvider.setText(text)
+        let insertedChangeCount = pasteboardProvider.changeCount
 
         do {
             try keyEventSender.sendCmdV()
@@ -46,6 +53,11 @@ final class Inserter: InserterProtocol {
             try await Task.sleep(nanoseconds: UInt64(restoreDelay * 1_000_000_000))
         }
 
+        // 待っている間にほかの内容がコピーされていたら、そちらを残す
+        guard pasteboardProvider.changeCount == insertedChangeCount else {
+            logger.debug("Text inserted, clipboard changed meanwhile; not restored")
+            return
+        }
         pasteboardProvider.restore(items: backedUpItems)
         logger.debug("Text inserted, clipboard restored")
     }
@@ -55,6 +67,8 @@ final class Inserter: InserterProtocol {
 
 final class SystemPasteboardProvider: PasteboardProviderProtocol {
     private let pasteboard = NSPasteboard.general
+
+    var changeCount: Int { pasteboard.changeCount }
 
     func backup() -> [PasteboardItem] {
         var items: [PasteboardItem] = []

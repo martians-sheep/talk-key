@@ -53,6 +53,24 @@ final class VoiceInputServiceTests: XCTestCase {
         XCTAssertThrowsError(try service.startRecording())
     }
 
+    func testStartRecordingStopsCaptureWhenTranscriberFailsToStart() {
+        transcriber.startTranscriptionError = TalkKeyError.transcriptionFailed("start failed")
+        XCTAssertThrowsError(try service.startRecording())
+        XCTAssertTrue(audioCapture.stopCaptureCalled)
+        XCTAssertEqual(service.status(), .idle)
+    }
+
+    func testStartRecordingAfterPipelineErrorSucceeds() async throws {
+        try service.startRecording()
+        transcriber.stopTranscriptionError = TalkKeyError.transcriptionFailed("stop failed")
+        _ = try? await service.stopRecording()
+        XCTAssertEqual(service.status(), .error(TalkKeyError.transcriptionFailed("stop failed").localizedDescription))
+
+        transcriber.stopTranscriptionError = nil
+        try service.startRecording()
+        XCTAssertEqual(service.status(), .recording)
+    }
+
     func testStopRecordingWhenNotRecordingThrows() async {
         do {
             _ = try await service.stopRecording()
@@ -219,6 +237,62 @@ final class VoiceInputServiceTests: XCTestCase {
         XCTAssertNotNil(entry?.result.formattedText)
         XCTAssertEqual(entry?.mode, .memo)
         XCTAssertNotNil(entry?.createdAt)
+    }
+}
+
+// MARK: - Warm-up and metrics
+
+extension VoiceInputServiceTests {
+    private func makeService(logger: MockLogger) -> VoiceInputService {
+        VoiceInputService(
+            audioCapture: audioCapture,
+            transcriber: transcriber,
+            formatter: formatter,
+            inserter: inserter,
+            historyStore: historyStore,
+            logger: logger
+        )
+    }
+
+    func test_prepare_preparesAudioCapture() {
+        service.prepare()
+
+        XCTAssertTrue(audioCapture.prepareCalled)
+    }
+
+    func test_stopRecording_logsOneMetricsLineWithEngineAndTimings() async throws {
+        let logger = MockLogger()
+        let service = makeService(logger: logger)
+        transcriber.transcriptionResult = TranscriptionResult(
+            rawText: "こんにちは", formattedText: nil, timestamp: Date(), duration: 1, engine: .whisper
+        )
+        try service.startRecording()
+
+        _ = try await service.stopRecording()
+
+        let metrics = logger.loggedMessages.map(\.message).filter { $0.hasPrefix("Metrics:") }
+        XCTAssertEqual(metrics.count, 1)
+        let line = metrics.first ?? ""
+        XCTAssertTrue(line.contains("engine=whisper"), line)
+        XCTAssertTrue(line.contains("recognize="), line)
+        XCTAssertTrue(line.contains("format="), line)
+        XCTAssertTrue(line.contains("total="), line)
+        XCTAssertTrue(line.contains("ms"), line)
+    }
+
+    func test_stopRecording_withEmptyResult_stillLogsMetrics() async throws {
+        let logger = MockLogger()
+        let service = makeService(logger: logger)
+        transcriber.transcriptionResult = TranscriptionResult(
+            rawText: "", formattedText: nil, timestamp: Date(), duration: 1, engine: .apple
+        )
+        try service.startRecording()
+
+        _ = try await service.stopRecording()
+
+        let line = logger.loggedMessages.map(\.message).first { $0.hasPrefix("Metrics:") } ?? ""
+        XCTAssertTrue(line.contains("engine=apple"), line)
+        XCTAssertTrue(line.contains("empty"), line)
     }
 }
 
